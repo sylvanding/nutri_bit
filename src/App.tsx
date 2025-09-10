@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Camera, Home, BookOpen, Users, User, MessageCircle, TrendingUp, Target, Award, ShoppingCart, Heart, Star, Clock, Zap, Check, BarChart3, Plus, Utensils, Coffee, Sandwich, Apple, Droplets } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import UltraSimpleGamificationPanel from './components/gamification/UltraSimpleGamificationPanel';
+import { useUltraSimpleGamificationStore } from './stores/ultraSimpleGamificationStore';
 
 interface NutritionData {
   calories: number;
@@ -98,6 +100,9 @@ const App: React.FC = () => {
   const [showNutritionReport, setShowNutritionReport] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const [selectedKOLPost, setSelectedKOLPost] = useState<KOLPost | null>(null);
+  
+  // 游戏化系统
+  const { addExp, logMeal, level, exp, streak, totalMeals } = useUltraSimpleGamificationStore();
   
   // 新增状态：拍照后的餐次选择
   const [showMealSelection, setShowMealSelection] = useState(false);
@@ -673,7 +678,7 @@ const App: React.FC = () => {
                 ].map((activity) => (
                   <button
                     key={activity.value}
-                    onClick={() => setFormData({...formData, activityLevel: activity.value as any})}
+                    onClick={() => setFormData({...formData, activityLevel: activity.value as 'light' | 'moderate' | 'heavy'})}
                     className={`w-full p-4 rounded-lg border-2 text-left transition-colors ${
                       formData.activityLevel === activity.value
                         ? 'border-green-500 bg-green-50'
@@ -699,7 +704,7 @@ const App: React.FC = () => {
                 ].map((goal) => (
                   <button
                     key={goal.value}
-                    onClick={() => setFormData({...formData, healthGoal: goal.value as any})}
+                    onClick={() => setFormData({...formData, healthGoal: goal.value as 'weight_loss' | 'muscle_gain' | 'maintain_health' | 'special_nutrition'})}
                     className={`w-full p-4 rounded-lg border-2 text-left transition-colors ${
                       formData.healthGoal === goal.value
                         ? 'border-green-500 bg-green-50'
@@ -731,7 +736,7 @@ const App: React.FC = () => {
                   ].map((focus) => (
                     <button
                       key={focus.value}
-                      onClick={() => setFormData({...formData, specialNutritionFocus: focus.value as any})}
+                      onClick={() => setFormData({...formData, specialNutritionFocus: focus.value as 'low_sodium' | 'high_protein' | 'low_carb' | 'high_fiber'})}
                       className={`w-full p-3 rounded-lg border-2 text-left transition-colors ${
                         formData.specialNutritionFocus === focus.value
                           ? 'border-green-500 bg-green-50'
@@ -767,20 +772,20 @@ const App: React.FC = () => {
     const bmr = calculateBMR(healthProfile);
     const tdee = calculateTDEE(healthProfile);
 
-    const goalLabels = {
+    const goalLabels: Record<string, string> = {
       'weight_loss': '减脂',
       'muscle_gain': '增肌',
       'maintain_health': '维持健康',
       'special_nutrition': '特定营养关注'
     };
 
-    const activityLabels = {
+    const activityLabels: Record<string, string> = {
       'light': '轻度运动',
       'moderate': '中度运动',
       'heavy': '重度运动'
     };
 
-    const specialNutritionLabels = {
+    const specialNutritionLabels: Record<string, string> = {
       'low_sodium': '低钠饮食',
       'high_protein': '高蛋白饮食',
       'low_carb': '低碳水饮食',
@@ -1145,6 +1150,15 @@ const App: React.FC = () => {
             <h2 className="text-xl font-bold">营养分析报告</h2>
             <button 
               onClick={() => {
+                // 奖励经验值 - 记录餐食
+                // 记录餐食并获得游戏化奖励
+                logMeal(); // 这会自动添加经验值并检查成就
+                
+                // 高营养评分额外奖励
+                if (mealData.averageScore >= 85) {
+                  addExp(20, '高营养评分奖励');
+                }
+                
                 setShowNutritionReport(false);
                 setSelectedMealForReport(null);
                 // 如果来自拍照流程，清理拍照相关状态
@@ -1499,7 +1513,7 @@ const App: React.FC = () => {
               ].map((tab) => (
                 <button
                   key={tab.key}
-                  onClick={() => setActiveTab(tab.key as any)}
+                  onClick={() => setActiveTab(tab.key as 'ingredients' | 'steps' | 'nutrition')}
                   className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                     activeTab === tab.key 
                       ? 'bg-white text-green-700 shadow-sm' 
@@ -1761,12 +1775,28 @@ const App: React.FC = () => {
             <h1 className="text-2xl font-bold">食刻</h1>
             <p className="text-green-100 text-sm">精准营养解码，预见更健康的你</p>
           </div>
-          <button 
-            onClick={() => setAiChatOpen(true)}
-            className="w-10 h-10 bg-green-300 rounded-full flex items-center justify-center"
-          >
-            🦝
-          </button>
+          <div className="flex items-center gap-3">
+            {/* 游戏化状态显示 */}
+            <div className="flex items-center gap-2 bg-white/20 rounded-full px-3 py-1">
+              <Zap size={16} className="text-yellow-300" />
+              <span className="text-sm font-medium">Lv.{level}</span>
+              {streak > 0 && (
+                <>
+                  <div className="w-1 h-1 bg-white rounded-full" />
+                  <div className="flex items-center gap-1">
+                    <span className="text-orange-300">🔥</span>
+                    <span className="text-xs">{streak}</span>
+                  </div>
+                </>
+              )}
+            </div>
+            <button 
+              onClick={() => setAiChatOpen(true)}
+              className="w-10 h-10 bg-green-300 rounded-full flex items-center justify-center"
+            >
+              🦝
+            </button>
+          </div>
         </div>
         
         {/* 分餐选项卡 */}
@@ -1829,6 +1859,36 @@ const App: React.FC = () => {
             <BookOpen size={20} />
             <span className="font-semibold text-sm">AI推荐</span>
           </button>
+        </div>
+        
+        {/* 游戏化快捷入口 */}
+        <div className="mb-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-4 text-white">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Award size={20} />
+              <span className="font-semibold">成就进度</span>
+            </div>
+            <button 
+              onClick={() => setActiveTab('gamification')}
+              className="text-xs bg-white/20 px-2 py-1 rounded-full"
+            >
+              查看全部
+            </button>
+          </div>
+          <div className="flex items-center gap-4 text-sm">
+            <div>
+              <span className="text-purple-100">等级 </span>
+              <span className="font-bold">Lv.{level}</span>
+            </div>
+            <div>
+              <span className="text-purple-100">连击 </span>
+              <span className="font-bold">{streak} 天</span>
+            </div>
+            <div>
+              <span className="text-purple-100">经验 </span>
+              <span className="font-bold">{exp}</span>
+            </div>
+          </div>
         </div>
 
         {/* 快捷添加餐食 */}
@@ -2464,6 +2524,12 @@ const App: React.FC = () => {
     </div>
   );
 
+  const GamificationView = () => (
+    <div className="pb-20">
+      <UltraSimpleGamificationPanel className="p-6" />
+    </div>
+  );
+
   const ProfileView = () => (
     <div className="pb-20 p-6">
       <div className="text-center mb-8">
@@ -2607,6 +2673,7 @@ const App: React.FC = () => {
   const tabs = [
     { id: 'home', name: '首页', icon: Home },
     { id: 'recipes', name: '菜谱', icon: BookOpen },
+    { id: 'gamification', name: '成就', icon: Award },
     { id: 'community', name: '社区', icon: Users },
     { id: 'profile', name: '我的', icon: User }
   ];
@@ -2616,6 +2683,7 @@ const App: React.FC = () => {
       {/* Main Content */}
       {activeTab === 'home' && <HomeView />}
       {activeTab === 'recipes' && <RecipesView />}
+      {activeTab === 'gamification' && <GamificationView />}
       {activeTab === 'community' && <CommunityView />}
       {activeTab === 'profile' && <ProfileView />}
 
