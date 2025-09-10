@@ -69,6 +69,29 @@ interface CommonFood {
   category: 'protein' | 'carbs' | 'vegetables' | 'fruits' | 'nuts' | 'dairy';
 }
 
+interface HealthProfile {
+  id: string;
+  name: string;
+  age: number;
+  gender: 'male' | 'female';
+  height: number; // cm
+  weight: number; // kg
+  activityLevel: 'light' | 'moderate' | 'heavy';
+  healthGoal: 'weight_loss' | 'muscle_gain' | 'maintain_health' | 'special_nutrition';
+  specialNutritionFocus?: 'low_sodium' | 'high_protein' | 'low_carb' | 'high_fiber';
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface DailyNutritionTargets {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  sodium: number;
+  fiber: number;
+}
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [showCamera, setShowCamera] = useState(false);
@@ -89,6 +112,24 @@ const App: React.FC = () => {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showRecipeDetail, setShowRecipeDetail] = useState(false);
 
+  // 健康档案相关状态
+  const [healthProfile, setHealthProfile] = useState<HealthProfile | null>(null);
+  const [showHealthProfile, setShowHealthProfile] = useState(false);
+  const [showProfileSetup, setShowProfileSetup] = useState(false);
+
+  // 在组件加载时从localStorage读取健康档案
+  React.useEffect(() => {
+    const savedProfile = localStorage.getItem('healthProfile');
+    if (savedProfile) {
+      try {
+        const profile = JSON.parse(savedProfile) as HealthProfile;
+        setHealthProfile(profile);
+      } catch (error) {
+        console.error('加载健康档案失败:', error);
+      }
+    }
+  }, []);
+
   // 基于当前时间自动检测餐次
   const detectMealType = (): 'breakfast' | 'lunch' | 'dinner' | 'snack' => {
     const currentHour = new Date().getHours();
@@ -104,18 +145,126 @@ const App: React.FC = () => {
     }
   };
 
+  // 计算基础代谢率(BMR) - 使用修订版Harris-Benedict公式
+  const calculateBMR = (profile: HealthProfile): number => {
+    const { age, gender, height, weight } = profile;
+    
+    if (gender === 'male') {
+      return 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
+    } else {
+      return 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);
+    }
+  };
+
+  // 计算每日总能量消耗(TDEE)
+  const calculateTDEE = (profile: HealthProfile): number => {
+    const bmr = calculateBMR(profile);
+    const activityMultipliers = {
+      light: 1.375,    // 轻度运动：每周1-3次
+      moderate: 1.55,  // 中度运动：每周3-5次
+      heavy: 1.725     // 重度运动：每周6-7次
+    };
+    
+    return bmr * activityMultipliers[profile.activityLevel];
+  };
+
+  // 根据健康目标调整热量
+  const adjustCaloriesForGoal = (tdee: number, goal: HealthProfile['healthGoal']): number => {
+    switch (goal) {
+      case 'weight_loss':
+        return tdee - 500; // 每日减少500卡路里，约每周减重0.5kg
+      case 'muscle_gain':
+        return tdee + 300; // 每日增加300卡路里支持肌肉增长
+      case 'maintain_health':
+        return tdee;
+      case 'special_nutrition':
+        return tdee; // 特殊营养关注通常维持基础代谢
+      default:
+        return tdee;
+    }
+  };
+
+  // 计算营养素分配
+  const calculateMacronutrients = (calories: number, profile: HealthProfile): DailyNutritionTargets => {
+    let proteinRatio = 0.25; // 默认蛋白质占25%
+    let carbsRatio = 0.45;   // 默认碳水化合物占45%
+    let fatRatio = 0.30;     // 默认脂肪占30%
+
+    // 根据健康目标调整营养素比例
+    switch (profile.healthGoal) {
+      case 'weight_loss':
+        proteinRatio = 0.30; // 减脂期增加蛋白质比例
+        carbsRatio = 0.35;
+        fatRatio = 0.35;
+        break;
+      case 'muscle_gain':
+        proteinRatio = 0.30; // 增肌期保持高蛋白
+        carbsRatio = 0.45;
+        fatRatio = 0.25;
+        break;
+      case 'special_nutrition':
+        // 根据特殊营养关注调整
+        if (profile.specialNutritionFocus === 'high_protein') {
+          proteinRatio = 0.35;
+          carbsRatio = 0.35;
+          fatRatio = 0.30;
+        } else if (profile.specialNutritionFocus === 'low_carb') {
+          proteinRatio = 0.30;
+          carbsRatio = 0.20;
+          fatRatio = 0.50;
+        }
+        break;
+    }
+
+    const protein = (calories * proteinRatio) / 4; // 1g蛋白质 = 4卡路里
+    const carbs = (calories * carbsRatio) / 4;     // 1g碳水化合物 = 4卡路里
+    const fat = (calories * fatRatio) / 9;         // 1g脂肪 = 9卡路里
+
+    // 计算钠的推荐摄入量
+    let sodium = 2300; // 默认每日2300mg钠
+    if (profile.specialNutritionFocus === 'low_sodium') {
+      sodium = 1500; // 低钠饮食：每日1500mg
+    }
+
+    // 计算膳食纤维推荐摄入量
+    const fiber = profile.gender === 'male' ? 
+      (profile.age <= 50 ? 38 : 30) : 
+      (profile.age <= 50 ? 25 : 21);
+
+    return {
+      calories: Math.round(calories),
+      protein: Math.round(protein),
+      carbs: Math.round(carbs),
+      fat: Math.round(fat),
+      sodium: sodium,
+      fiber: fiber
+    };
+  };
+
+  // 计算用户的营养目标
+  const calculateNutritionTargets = (profile: HealthProfile): DailyNutritionTargets => {
+    const tdee = calculateTDEE(profile);
+    const targetCalories = adjustCaloriesForGoal(tdee, profile.healthGoal);
+    return calculateMacronutrients(targetCalories, profile);
+  };
+
+  // 动态计算营养目标
+  const nutritionTargets = healthProfile 
+    ? calculateNutritionTargets(healthProfile)
+    : { calories: 2000, protein: 120, carbs: 250, fat: 65, sodium: 2300, fiber: 25 }; // 默认值
+
   const todayNutrition = {
-    target: { calories: 2000, protein: 120, carbs: 250, fat: 65, sodium: 2300, fiber: 25 },
+    target: nutritionTargets,
     current: { calories: 1636, protein: 97, carbs: 195, fat: 60, sodium: 1185, fiber: 29 }
   };
 
-  // 每餐热量标准
+  // 每餐热量标准 - 基于用户的营养目标动态计算
   const mealCalorieStandards = {
-    all: 2000,
-    breakfast: 500,  // 25%
-    lunch: 700,      // 35%
-    dinner: 600,     // 30%
-    snack: 200       // 10%
+    all: nutritionTargets.calories,
+    breakfast: Math.round(nutritionTargets.calories * 0.25),  // 25%
+    lunch: Math.round(nutritionTargets.calories * 0.35),      // 35%
+    dinner: Math.round(nutritionTargets.calories * 0.30),     // 30%
+    snack: Math.round(nutritionTargets.calories * 0.10)       // 10%
   };
 
   // 分餐营养数据
@@ -385,6 +534,385 @@ const App: React.FC = () => {
     </div>
   );
 
+
+  // 健康档案设置组件
+  const HealthProfileSetup = () => {
+    const [formData, setFormData] = useState<Partial<HealthProfile>>({
+      name: '',
+      age: 25,
+      gender: 'male',
+      height: 170,
+      weight: 65,
+      activityLevel: 'moderate',
+      healthGoal: 'maintain_health',
+      specialNutritionFocus: undefined
+    });
+
+    const handleSave = () => {
+      if (!formData.name || !formData.age || !formData.height || !formData.weight) {
+        alert('请填写完整的基本信息');
+        return;
+      }
+
+      const profile: HealthProfile = {
+        id: Date.now().toString(),
+        name: formData.name!,
+        age: formData.age!,
+        gender: formData.gender!,
+        height: formData.height!,
+        weight: formData.weight!,
+        activityLevel: formData.activityLevel!,
+        healthGoal: formData.healthGoal!,
+        specialNutritionFocus: formData.specialNutritionFocus,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      setHealthProfile(profile);
+      localStorage.setItem('healthProfile', JSON.stringify(profile));
+      setShowProfileSetup(false);
+      alert('健康档案保存成功！已为您计算个性化营养目标。');
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+          {/* 头部 */}
+          <div className="p-6 pb-4 border-b border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xl font-bold text-gray-800">创建健康档案</h2>
+              <button 
+                onClick={() => setShowProfileSetup(false)}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-sm text-gray-500">填写基本信息，获得个性化营养建议</p>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {/* 基本信息 */}
+            <div>
+              <h3 className="font-semibold text-gray-800 mb-4">基本信息</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">姓名</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="请输入您的姓名"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">年龄</label>
+                    <input
+                      type="number"
+                      value={formData.age}
+                      onChange={(e) => setFormData({...formData, age: parseInt(e.target.value)})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                      min="16"
+                      max="100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">性别</label>
+                    <select
+                      value={formData.gender}
+                      onChange={(e) => setFormData({...formData, gender: e.target.value as 'male' | 'female'})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    >
+                      <option value="male">男</option>
+                      <option value="female">女</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">身高 (cm)</label>
+                    <input
+                      type="number"
+                      value={formData.height}
+                      onChange={(e) => setFormData({...formData, height: parseInt(e.target.value)})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                      min="120"
+                      max="220"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">体重 (kg)</label>
+                    <input
+                      type="number"
+                      value={formData.weight}
+                      onChange={(e) => setFormData({...formData, weight: parseInt(e.target.value)})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                      min="30"
+                      max="200"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 运动习惯 */}
+            <div>
+              <h3 className="font-semibold text-gray-800 mb-4">运动习惯</h3>
+              <div className="space-y-3">
+                {[
+                  { value: 'light', label: '轻度运动', desc: '每周1-3次轻松运动' },
+                  { value: 'moderate', label: '中度运动', desc: '每周3-5次适中强度运动' },
+                  { value: 'heavy', label: '重度运动', desc: '每周6-7次高强度运动' }
+                ].map((activity) => (
+                  <button
+                    key={activity.value}
+                    onClick={() => setFormData({...formData, activityLevel: activity.value as any})}
+                    className={`w-full p-4 rounded-lg border-2 text-left transition-colors ${
+                      formData.activityLevel === activity.value
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="font-medium">{activity.label}</div>
+                    <div className="text-sm text-gray-600">{activity.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 健康目标 */}
+            <div>
+              <h3 className="font-semibold text-gray-800 mb-4">健康目标</h3>
+              <div className="space-y-3">
+                {[
+                  { value: 'weight_loss', label: '减脂', desc: '减少体脂，塑造身形', icon: '🔥' },
+                  { value: 'muscle_gain', label: '增肌', desc: '增加肌肉量，强健体魄', icon: '💪' },
+                  { value: 'maintain_health', label: '维持健康', desc: '保持现状，均衡营养', icon: '⚖️' },
+                  { value: 'special_nutrition', label: '特定营养关注', desc: '针对特殊营养需求', icon: '🎯' }
+                ].map((goal) => (
+                  <button
+                    key={goal.value}
+                    onClick={() => setFormData({...formData, healthGoal: goal.value as any})}
+                    className={`w-full p-4 rounded-lg border-2 text-left transition-colors ${
+                      formData.healthGoal === goal.value
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center">
+                      <span className="text-xl mr-3">{goal.icon}</span>
+                      <div>
+                        <div className="font-medium">{goal.label}</div>
+                        <div className="text-sm text-gray-600">{goal.desc}</div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 特殊营养关注 */}
+            {formData.healthGoal === 'special_nutrition' && (
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-4">特殊营养关注</h3>
+                <div className="space-y-3">
+                  {[
+                    { value: 'low_sodium', label: '低钠饮食', desc: '控制钠摄入量' },
+                    { value: 'high_protein', label: '高蛋白饮食', desc: '增加蛋白质摄入' },
+                    { value: 'low_carb', label: '低碳水饮食', desc: '减少碳水化合物' },
+                    { value: 'high_fiber', label: '高纤维饮食', desc: '增加膳食纤维' }
+                  ].map((focus) => (
+                    <button
+                      key={focus.value}
+                      onClick={() => setFormData({...formData, specialNutritionFocus: focus.value as any})}
+                      className={`w-full p-3 rounded-lg border-2 text-left transition-colors ${
+                        formData.specialNutritionFocus === focus.value
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="font-medium text-sm">{focus.label}</div>
+                      <div className="text-xs text-gray-600">{focus.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 保存按钮 */}
+            <button
+              onClick={handleSave}
+              className="w-full bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors"
+            >
+              保存健康档案
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // 健康档案查看组件
+  const HealthProfileView = () => {
+    if (!healthProfile) return null;
+
+    const targets = calculateNutritionTargets(healthProfile);
+    const bmr = calculateBMR(healthProfile);
+    const tdee = calculateTDEE(healthProfile);
+
+    const goalLabels = {
+      'weight_loss': '减脂',
+      'muscle_gain': '增肌',
+      'maintain_health': '维持健康',
+      'special_nutrition': '特定营养关注'
+    };
+
+    const activityLabels = {
+      'light': '轻度运动',
+      'moderate': '中度运动',
+      'heavy': '重度运动'
+    };
+
+    const specialNutritionLabels = {
+      'low_sodium': '低钠饮食',
+      'high_protein': '高蛋白饮食',
+      'low_carb': '低碳水饮食',
+      'high_fiber': '高纤维饮食'
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
+        <div className="bg-white w-full rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold">我的健康档案</h2>
+            <button 
+              onClick={() => setShowHealthProfile(false)}
+              className="text-gray-500 p-2"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* 基本信息卡片 */}
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-4 mb-6">
+            <div className="flex items-center mb-3">
+              <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                {healthProfile.name.charAt(0)}
+              </div>
+              <div className="ml-3">
+                <h3 className="font-semibold text-lg">{healthProfile.name}</h3>
+                <p className="text-sm text-gray-600">
+                  {healthProfile.age}岁 • {healthProfile.gender === 'male' ? '男' : '女'} • BMI: {(healthProfile.weight / Math.pow(healthProfile.height / 100, 2)).toFixed(1)}
+                </p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="bg-white/70 rounded-lg p-3 text-center">
+                <div className="font-semibold text-gray-800">{healthProfile.height} cm</div>
+                <div className="text-gray-600">身高</div>
+              </div>
+              <div className="bg-white/70 rounded-lg p-3 text-center">
+                <div className="font-semibold text-gray-800">{healthProfile.weight} kg</div>
+                <div className="text-gray-600">体重</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 健康目标 */}
+          <div className="mb-6">
+            <h4 className="font-semibold mb-3">健康目标</h4>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center mb-2">
+                <Target className="w-5 h-5 text-green-600 mr-2" />
+                <span className="font-medium">{goalLabels[healthProfile.healthGoal]}</span>
+              </div>
+              <div className="text-sm text-gray-600 mb-2">
+                运动习惯: {activityLabels[healthProfile.activityLevel]}
+              </div>
+              {healthProfile.specialNutritionFocus && (
+                <div className="text-sm text-gray-600">
+                  特殊关注: {specialNutritionLabels[healthProfile.specialNutritionFocus]}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 代谢信息 */}
+          <div className="mb-6">
+            <h4 className="font-semibold mb-3">代谢信息</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-blue-50 rounded-lg p-3 text-center">
+                <div className="text-lg font-bold text-blue-600">{Math.round(bmr)}</div>
+                <div className="text-xs text-gray-600">基础代谢率 (千卡/天)</div>
+              </div>
+              <div className="bg-green-50 rounded-lg p-3 text-center">
+                <div className="text-lg font-bold text-green-600">{Math.round(tdee)}</div>
+                <div className="text-xs text-gray-600">总消耗 (千卡/天)</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 营养目标 */}
+          <div className="mb-6">
+            <h4 className="font-semibold mb-3">每日营养目标</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-orange-50 rounded-lg p-3 text-center">
+                <div className="text-lg font-bold text-orange-600">{targets.calories}</div>
+                <div className="text-xs text-gray-600">千卡</div>
+              </div>
+              <div className="bg-red-50 rounded-lg p-3 text-center">
+                <div className="text-lg font-bold text-red-600">{targets.protein}g</div>
+                <div className="text-xs text-gray-600">蛋白质</div>
+              </div>
+              <div className="bg-yellow-50 rounded-lg p-3 text-center">
+                <div className="text-lg font-bold text-yellow-600">{targets.carbs}g</div>
+                <div className="text-xs text-gray-600">碳水化合物</div>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-3 text-center">
+                <div className="text-lg font-bold text-purple-600">{targets.fat}g</div>
+                <div className="text-xs text-gray-600">脂肪</div>
+              </div>
+              <div className="bg-indigo-50 rounded-lg p-3 text-center">
+                <div className="text-lg font-bold text-indigo-600">{targets.sodium}mg</div>
+                <div className="text-xs text-gray-600">钠</div>
+              </div>
+              <div className="bg-teal-50 rounded-lg p-3 text-center">
+                <div className="text-lg font-bold text-teal-600">{targets.fiber}g</div>
+                <div className="text-xs text-gray-600">膳食纤维</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 底部按钮 */}
+          <div className="grid grid-cols-2 gap-3">
+            <button 
+              onClick={() => {
+                setShowHealthProfile(false);
+                setShowProfileSetup(true);
+              }}
+              className="py-3 px-4 border border-gray-300 rounded-lg font-semibold text-gray-700"
+            >
+              编辑档案
+            </button>
+            <button 
+              onClick={() => setShowHealthProfile(false)}
+              className="py-3 px-4 bg-green-500 text-white rounded-lg font-semibold"
+            >
+              确认
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const CameraView = () => (
     <div className="fixed inset-0 bg-black z-50">
@@ -1940,11 +2468,40 @@ const App: React.FC = () => {
     <div className="pb-20 p-6">
       <div className="text-center mb-8">
         <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4">
-          U
+          {healthProfile ? healthProfile.name.charAt(0) : 'U'}
         </div>
-        <h1 className="text-xl font-bold mb-2">健康达人</h1>
+        <h1 className="text-xl font-bold mb-2">{healthProfile ? healthProfile.name : '健康达人'}</h1>
         <p className="text-gray-600 text-sm">已坚持记录 42 天</p>
       </div>
+
+      {/* 显示健康档案状态 */}
+      {healthProfile && (
+        <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-4 mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold text-gray-800">我的健康档案</h3>
+            <button 
+              onClick={() => setShowHealthProfile(true)}
+              className="text-green-600 text-sm font-medium"
+            >
+              查看详情
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="bg-white/70 rounded-lg p-2 text-center">
+              <div className="font-semibold text-gray-800">{healthProfile.height} cm</div>
+              <div className="text-gray-600">身高</div>
+            </div>
+            <div className="bg-white/70 rounded-lg p-2 text-center">
+              <div className="font-semibold text-gray-800">{healthProfile.weight} kg</div>
+              <div className="text-gray-600">体重</div>
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-gray-600">
+            BMI: {(healthProfile.weight / Math.pow(healthProfile.height / 100, 2)).toFixed(1)} • 
+            每日目标: {nutritionTargets.calories} 千卡
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-4 mb-8">
         <div className="text-center">
@@ -1965,7 +2522,22 @@ const App: React.FC = () => {
         <div className="bg-white p-4 rounded-lg shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <Target className="w-5 h-5 text-green-600 mr-3" />
+              <User className="w-5 h-5 text-green-600 mr-3" />
+              <span className="font-medium">健康档案</span>
+            </div>
+            <button 
+              onClick={() => healthProfile ? setShowHealthProfile(true) : setShowProfileSetup(true)}
+              className="text-sm text-gray-500"
+            >
+              {healthProfile ? '查看详情' : '创建档案'} →
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-lg shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Target className="w-5 h-5 text-blue-600 mr-3" />
               <span className="font-medium">健康目标</span>
             </div>
             <span className="text-sm text-gray-500">→</span>
@@ -1975,7 +2547,7 @@ const App: React.FC = () => {
         <div className="bg-white p-4 rounded-lg shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <TrendingUp className="w-5 h-5 text-blue-600 mr-3" />
+              <TrendingUp className="w-5 h-5 text-purple-600 mr-3" />
               <span className="font-medium">健康报告</span>
             </div>
             <span className="text-sm text-gray-500">→</span>
@@ -1985,7 +2557,7 @@ const App: React.FC = () => {
         <div className="bg-white p-4 rounded-lg shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <Award className="w-5 h-5 text-purple-600 mr-3" />
+              <Award className="w-5 h-5 text-yellow-600 mr-3" />
               <span className="font-medium">成就中心</span>
             </div>
             <span className="text-sm text-gray-500">→</span>
@@ -2003,15 +2575,32 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      <div className="mt-8 bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-2xl">
-        <div className="text-center">
-          <h3 className="font-bold text-lg mb-2">升级至专业版</h3>
-          <p className="text-gray-600 text-sm mb-4">解锁全部AI功能和无限次识别</p>
-          <button className="bg-green-500 text-white px-8 py-3 rounded-lg font-semibold">
-            立即升级 ¥19.9/月
-          </button>
+      {!healthProfile && (
+        <div className="mt-8 bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-2xl">
+          <div className="text-center">
+            <h3 className="font-bold text-lg mb-2">创建健康档案</h3>
+            <p className="text-gray-600 text-sm mb-4">填写基本信息，获得个性化营养建议</p>
+            <button 
+              onClick={() => setShowProfileSetup(true)}
+              className="bg-green-500 text-white px-8 py-3 rounded-lg font-semibold"
+            >
+              立即创建档案
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+
+      {healthProfile && (
+        <div className="mt-8 bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-2xl">
+          <div className="text-center">
+            <h3 className="font-bold text-lg mb-2">升级至专业版</h3>
+            <p className="text-gray-600 text-sm mb-4">解锁全部AI功能和无限次识别</p>
+            <button className="bg-green-500 text-white px-8 py-3 rounded-lg font-semibold">
+              立即升级 ¥19.9/月
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -2059,6 +2648,8 @@ const App: React.FC = () => {
       {selectedKOLPost && <KOLPostModal post={selectedKOLPost} />}
       {showCommonFoods && <CommonFoodsModal />}
       {selectedRecipe && showRecipeDetail && <RecipeDetailModal recipe={selectedRecipe} />}
+      {showProfileSetup && <HealthProfileSetup />}
+      {showHealthProfile && <HealthProfileView />}
     </div>
   );
 };
