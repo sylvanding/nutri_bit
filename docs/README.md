@@ -67,6 +67,8 @@ git clone https://github.com/your-org/nutri-bit.git
 cd nutri-bit
 
 # 安装依赖
+# nodejs v20.19.5
+# npm@10.8.2
 npm install
 
 # 启动开发服务器

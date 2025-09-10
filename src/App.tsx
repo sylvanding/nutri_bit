@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Camera, Home, BookOpen, Users, User, MessageCircle, TrendingUp, Target, Award, ShoppingCart, Heart, Star, Clock, Zap, Check } from 'lucide-react';
+import { Camera, Home, BookOpen, Users, User, MessageCircle, TrendingUp, Target, Award, ShoppingCart, Heart, Star, Clock, Zap, Check, BarChart3, Plus, Utensils, Coffee, Sandwich, Apple, Droplets } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 
 interface NutritionData {
   calories: number;
@@ -15,6 +16,7 @@ interface MealRecord {
   image: string;
   name: string;
   time: string;
+  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
   nutrition: NutritionData;
   score: number;
 }
@@ -32,17 +34,89 @@ interface KOLPost {
   isFollowable: boolean;
 }
 
+interface CommonFood {
+  id: string;
+  name: string;
+  icon: string;
+  nutrition: NutritionData;
+  category: 'protein' | 'carbs' | 'vegetables' | 'fruits' | 'nuts' | 'dairy';
+}
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('home');
-  const [selectedMeal, setSelectedMeal] = useState<MealRecord | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [showNutritionReport, setShowNutritionReport] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const [selectedKOLPost, setSelectedKOLPost] = useState<KOLPost | null>(null);
+  
+  // 新增状态：拍照后的餐次选择
+  const [showMealSelection, setShowMealSelection] = useState(false);
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [selectedMealType, setSelectedMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('breakfast');
+  const [selectedMealTime, setSelectedMealTime] = useState('all');
+  const [selectedInsightPeriod, setSelectedInsightPeriod] = useState('today');
+  const [showCommonFoods, setShowCommonFoods] = useState(false);
+  const [selectedMealForReport, setSelectedMealForReport] = useState<string | null>(null);
+
+  // 基于当前时间自动检测餐次
+  const detectMealType = (): 'breakfast' | 'lunch' | 'dinner' | 'snack' => {
+    const currentHour = new Date().getHours();
+    
+    if (currentHour >= 6 && currentHour < 10) {
+      return 'breakfast';
+    } else if (currentHour >= 10 && currentHour < 14) {
+      return 'lunch';
+    } else if (currentHour >= 17 && currentHour < 21) {
+      return 'dinner';
+    } else {
+      return 'snack';
+    }
+  };
 
   const todayNutrition = {
-    target: { calories: 2000, protein: 120, carbs: 250, fat: 65 },
-    current: { calories: 1456, protein: 89, carbs: 180, fat: 48 }
+    target: { calories: 2000, protein: 120, carbs: 250, fat: 65, sodium: 2300, fiber: 25 },
+    current: { calories: 1636, protein: 97, carbs: 195, fat: 60, sodium: 1185, fiber: 29 }
+  };
+
+  // 每餐热量标准
+  const mealCalorieStandards = {
+    all: 2000,
+    breakfast: 500,  // 25%
+    lunch: 700,      // 35%
+    dinner: 600,     // 30%
+    snack: 200       // 10%
+  };
+
+  // 分餐营养数据
+  const mealNutritionByType = {
+    breakfast: { calories: 420, protein: 18, carbs: 35, fat: 25 },
+    lunch: { calories: 380, protein: 35, carbs: 20, fat: 15 },
+    dinner: { calories: 600, protein: 36, carbs: 125, fat: 8 },
+    snack: { calories: 180, protein: 8, carbs: 15, fat: 12 }
+  };
+
+  const mealTypeNames = {
+    all: '全天',
+    breakfast: '早餐',
+    lunch: '午餐', 
+    dinner: '晚餐',
+    snack: '加餐'
+  };
+
+  // 本周营养趋势数据
+  const weeklyTrends = [
+    { day: '周一', calories: 1820, protein: 95, score: 88 },
+    { day: '周二', calories: 1950, protein: 102, score: 92 },
+    { day: '周三', calories: 1680, protein: 88, score: 85 },
+    { day: '周四', calories: 2100, protein: 115, score: 90 },
+    { day: '周五', calories: 1890, protein: 98, score: 89 },
+    { day: '周六', calories: 2200, protein: 120, score: 87 },
+    { day: '今日', calories: 1636, protein: 97, score: 91 }
+  ];
+
+  const insightPeriods = {
+    today: '今日分析', 
+    week: '本周分析'
   };
 
   const todayMeals: MealRecord[] = [
@@ -51,6 +125,7 @@ const App: React.FC = () => {
       image: 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=400',
       name: '牛油果吐司配煎蛋',
       time: '8:30',
+      mealType: 'breakfast',
       nutrition: { calories: 420, protein: 18, carbs: 35, fat: 25, sodium: 380, fiber: 8 },
       score: 92
     },
@@ -59,6 +134,7 @@ const App: React.FC = () => {
       image: 'https://images.pexels.com/photos/1640774/pexels-photo-1640774.jpeg?auto=compress&cs=tinysrgb&w=400',
       name: '鸡胸肉沙拉',
       time: '12:45',
+      mealType: 'lunch',
       nutrition: { calories: 380, protein: 35, carbs: 20, fat: 15, sodium: 420, fiber: 6 },
       score: 88
     },
@@ -67,8 +143,18 @@ const App: React.FC = () => {
       image: 'https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg?auto=compress&cs=tinysrgb&w=400',
       name: '三文鱼藜麦饭',
       time: '19:20',
+      mealType: 'dinner',
       nutrition: { calories: 656, protein: 36, carbs: 125, fat: 8, sodium: 340, fiber: 12 },
       score: 95
+    },
+    {
+      id: '4',
+      image: 'https://images.pexels.com/photos/1640775/pexels-photo-1640775.jpeg?auto=compress&cs=tinysrgb&w=400',
+      name: '坚果酸奶杯',
+      time: '15:30',
+      mealType: 'snack',
+      nutrition: { calories: 180, protein: 8, carbs: 15, fat: 12, sodium: 45, fiber: 3 },
+      score: 85
     }
   ];
 
@@ -99,6 +185,41 @@ const App: React.FC = () => {
     }
   ];
 
+  // 常见食物数据
+  const commonFoods: CommonFood[] = [
+    // 蛋白质类
+    { id: '1', name: '鸡蛋', icon: '🥚', nutrition: { calories: 155, protein: 13, carbs: 1, fat: 11, sodium: 124, fiber: 0 }, category: 'protein' },
+    { id: '2', name: '鸡胸肉', icon: '🍗', nutrition: { calories: 165, protein: 31, carbs: 0, fat: 3.6, sodium: 74, fiber: 0 }, category: 'protein' },
+    { id: '3', name: '三文鱼', icon: '🐟', nutrition: { calories: 208, protein: 20, carbs: 0, fat: 13, sodium: 93, fiber: 0 }, category: 'protein' },
+    { id: '4', name: '豆腐', icon: '🥛', nutrition: { calories: 70, protein: 8, carbs: 2, fat: 4, sodium: 7, fiber: 1 }, category: 'protein' },
+    
+    // 碳水化合物类
+    { id: '5', name: '燕麦', icon: '🌾', nutrition: { calories: 389, protein: 17, carbs: 66, fat: 7, sodium: 2, fiber: 11 }, category: 'carbs' },
+    { id: '6', name: '糙米饭', icon: '🍚', nutrition: { calories: 112, protein: 2.3, carbs: 22, fat: 0.9, sodium: 7, fiber: 1.8 }, category: 'carbs' },
+    { id: '7', name: '红薯', icon: '🍠', nutrition: { calories: 103, protein: 2.3, carbs: 24, fat: 0.1, sodium: 6, fiber: 3.9 }, category: 'carbs' },
+    { id: '8', name: '全麦面包', icon: '🍞', nutrition: { calories: 247, protein: 13, carbs: 41, fat: 4.2, sodium: 400, fiber: 6 }, category: 'carbs' },
+    
+    // 蔬菜类
+    { id: '9', name: '西兰花', icon: '🥦', nutrition: { calories: 25, protein: 3, carbs: 5, fat: 0.4, sodium: 41, fiber: 3 }, category: 'vegetables' },
+    { id: '10', name: '菠菜', icon: '🥬', nutrition: { calories: 23, protein: 2.9, carbs: 3.6, fat: 0.4, sodium: 79, fiber: 2.2 }, category: 'vegetables' },
+    { id: '11', name: '胡萝卜', icon: '🥕', nutrition: { calories: 41, protein: 0.9, carbs: 10, fat: 0.2, sodium: 69, fiber: 2.8 }, category: 'vegetables' },
+    { id: '12', name: '西红柿', icon: '🍅', nutrition: { calories: 18, protein: 0.9, carbs: 3.9, fat: 0.2, sodium: 5, fiber: 1.2 }, category: 'vegetables' },
+    
+    // 水果类
+    { id: '13', name: '苹果', icon: '🍎', nutrition: { calories: 52, protein: 0.3, carbs: 14, fat: 0.2, sodium: 1, fiber: 2.4 }, category: 'fruits' },
+    { id: '14', name: '香蕉', icon: '🍌', nutrition: { calories: 89, protein: 1.1, carbs: 23, fat: 0.3, sodium: 1, fiber: 2.6 }, category: 'fruits' },
+    { id: '15', name: '蓝莓', icon: '🫐', nutrition: { calories: 57, protein: 0.7, carbs: 14, fat: 0.3, sodium: 1, fiber: 2.4 }, category: 'fruits' },
+    { id: '16', name: '橙子', icon: '🍊', nutrition: { calories: 43, protein: 1.2, carbs: 8.3, fat: 0.2, sodium: 40, fiber: 2.2 }, category: 'fruits' },
+    
+    // 坚果类
+    { id: '17', name: '杏仁', icon: '🌰', nutrition: { calories: 579, protein: 21, carbs: 22, fat: 50, sodium: 1, fiber: 12 }, category: 'nuts' },
+    { id: '18', name: '核桃', icon: '🥜', nutrition: { calories: 654, protein: 15, carbs: 14, fat: 65, sodium: 2, fiber: 7 }, category: 'nuts' },
+    
+    // 乳制品类
+    { id: '19', name: '牛奶', icon: '🥛', nutrition: { calories: 42, protein: 3.4, carbs: 5, fat: 1, sodium: 44, fiber: 0 }, category: 'dairy' },
+    { id: '20', name: '希腊酸奶', icon: '🥛', nutrition: { calories: 100, protein: 10, carbs: 6, fat: 4, sodium: 36, fiber: 0 }, category: 'dairy' }
+  ];
+
   const renderProgressBar = (current: number, target: number, color: string) => (
     <div className="w-full bg-gray-200 rounded-full h-2">
       <div 
@@ -120,6 +241,7 @@ const App: React.FC = () => {
       </div>
     </div>
   );
+
 
   const CameraView = () => (
     <div className="fixed inset-0 bg-black z-50">
@@ -151,8 +273,13 @@ const App: React.FC = () => {
         <div className="absolute bottom-8 left-0 right-0 flex justify-center">
           <button 
             onClick={() => {
+              // 模拟拍照并保存图片
+              setCapturedPhoto('mock-photo-data');
+              // 根据当前时间自动设置餐次
+              setSelectedMealType(detectMealType());
+              // 关闭拍照界面，打开餐次选择界面
               setShowCamera(false);
-              setShowNutritionReport(true);
+              setShowMealSelection(true);
             }}
             className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center text-white border-4 border-white shadow-lg"
           >
@@ -163,76 +290,325 @@ const App: React.FC = () => {
     </div>
   );
 
-  const NutritionReportModal = () => (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
-      <div className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold">营养分析报告</h2>
+  // 餐次选择界面
+  const MealSelectionModal = () => {
+    const mealTypes = [
+      { 
+        type: 'breakfast' as const, 
+        name: '早餐', 
+        icon: '🌅', 
+        time: '6:00-10:00',
+        description: '开启活力一天' 
+      },
+      { 
+        type: 'lunch' as const, 
+        name: '午餐', 
+        icon: '☀️', 
+        time: '10:00-14:00',
+        description: '午间能量补充' 
+      },
+      { 
+        type: 'dinner' as const, 
+        name: '晚餐', 
+        icon: '🌙', 
+        time: '17:00-21:00',
+        description: '营养均衡收官' 
+      },
+      { 
+        type: 'snack' as const, 
+        name: '加餐', 
+        icon: '🍎', 
+        time: '其他时间',
+        description: '健康小食补给' 
+      }
+    ];
+
+    const currentTime = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl w-full max-w-md shadow-xl">
+          {/* 头部 */}
+          <div className="p-6 pb-4 border-b border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xl font-bold text-gray-800">选择餐次</h2>
+              <button 
+                onClick={() => {
+                  setShowMealSelection(false);
+                  setCapturedPhoto(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-sm text-gray-500">当前时间 {currentTime}，AI推荐餐次已选中</p>
+          </div>
+
+          {/* 餐次选项 */}
+          <div className="p-6 pt-4">
+            <div className="space-y-3">
+              {mealTypes.map((meal) => (
+                <button
+                  key={meal.type}
+                  onClick={() => setSelectedMealType(meal.type)}
+                  className={`w-full p-4 rounded-2xl border-2 transition-all ${
+                    selectedMealType === meal.type
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="text-2xl">{meal.icon}</div>
+                    <div className="flex-1 text-left">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-gray-800">{meal.name}</span>
+                        <span className="text-xs text-gray-500">{meal.time}</span>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">{meal.description}</p>
+                    </div>
+                    {selectedMealType === meal.type && (
+                      <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                        <Check size={12} className="text-white" />
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* 底部按钮 */}
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowMealSelection(false);
+                  setCapturedPhoto(null);
+                }}
+                className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+              >
+                重新拍照
+              </button>
+              <button
+                onClick={() => {
+                  setShowMealSelection(false);
+                  setShowNutritionReport(true);
+                }}
+                className="flex-1 py-3 px-4 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition-colors"
+              >
+                确认分析
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const NutritionReportModal = () => {
+    // 检查是否来自拍照流程
+    const isFromPhotoCapture = capturedPhoto !== null;
+    
+    // 根据选择的餐次获取数据
+    const getMealData = () => {
+      // 如果来自拍照流程，返回模拟的分析结果
+      if (isFromPhotoCapture) {
+        const mealTypeNames = {
+          'breakfast': '早餐',
+          'lunch': '午餐', 
+          'dinner': '晚餐',
+          'snack': '加餐'
+        };
+        
+        return {
+          title: `AI识别：${mealTypeNames[selectedMealType as keyof typeof mealTypeNames]}营养分析`,
+          totalCalories: 520,
+          totalProtein: 28,
+          totalCarbs: 45,
+          totalFat: 18,
+          averageScore: 92,
+          description: 'AI识别成功！这份餐品营养搭配均衡，蛋白质含量充足，建议适量增加蔬菜摄入。',
+          isPhotoAnalysis: true
+        };
+      }
+      if (selectedMealForReport === 'all') {
+        return {
+          title: '全天营养汇总',
+          totalCalories: todayNutrition.current.calories,
+          totalProtein: todayNutrition.current.protein,
+          totalCarbs: todayNutrition.current.carbs,
+          totalFat: todayNutrition.current.fat,
+          averageScore: Math.round(todayMeals.reduce((sum, meal) => sum + meal.score, 0) / todayMeals.length),
+          description: '今日整体营养摄入均衡，各营养素比例适宜'
+        };
+      } else {
+        const mealsOfType = todayMeals.filter(meal => meal.mealType === selectedMealForReport);
+        const totalNutrition = mealsOfType.reduce((sum, meal) => ({
+          calories: sum.calories + meal.nutrition.calories,
+          protein: sum.protein + meal.nutrition.protein,
+          carbs: sum.carbs + meal.nutrition.carbs,
+          fat: sum.fat + meal.nutrition.fat
+        }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+        
+        const averageScore = mealsOfType.length > 0 
+          ? Math.round(mealsOfType.reduce((sum, meal) => sum + meal.score, 0) / mealsOfType.length)
+          : 0;
+          
+        return {
+          title: `${mealTypeNames[selectedMealForReport as keyof typeof mealTypeNames]}营养详报`,
+          totalCalories: totalNutrition.calories,
+          totalProtein: totalNutrition.protein,
+          totalCarbs: totalNutrition.carbs,
+          totalFat: totalNutrition.fat,
+          averageScore,
+          description: `${mealTypeNames[selectedMealForReport as keyof typeof mealTypeNames]}营养搭配${averageScore >= 90 ? '优秀' : averageScore >= 80 ? '良好' : '一般'}，${totalNutrition.protein >= 20 ? '蛋白质充足' : '建议增加蛋白质'}`
+        };
+      }
+    };
+
+    const mealData = getMealData();
+
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
+        <div className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold">营养分析报告</h2>
+            <button 
+              onClick={() => {
+                setShowNutritionReport(false);
+                setSelectedMealForReport(null);
+                // 如果来自拍照流程，清理拍照相关状态
+                if (isFromPhotoCapture) {
+                  setCapturedPhoto(null);
+                }
+              }}
+              className="text-gray-500 p-2"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="text-center mb-6">
+            <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="text-2xl font-bold text-green-600">{mealData.averageScore}</div>
+            </div>
+            <h3 className="text-lg font-semibold mb-1">{mealData.title}</h3>
+            <p className="text-gray-600 text-sm">{mealData.description}</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-blue-50 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-blue-600 mb-1">{mealData.totalCalories}</div>
+              <div className="text-sm text-gray-600">千卡</div>
+            </div>
+            <div className="bg-orange-50 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-orange-600 mb-1">{mealData.totalProtein}g</div>
+              <div className="text-sm text-gray-600">蛋白质</div>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-green-600 mb-1">{mealData.totalCarbs}g</div>
+              <div className="text-sm text-gray-600">碳水化合物</div>
+            </div>
+            <div className="bg-purple-50 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-purple-600 mb-1">{mealData.totalFat}g</div>
+              <div className="text-sm text-gray-600">脂肪</div>
+            </div>
+          </div>
+
+          {/* 根据餐次显示相关食物 */}
+          {isFromPhotoCapture ? (
+            <div className="mb-6">
+              <h4 className="font-semibold mb-3">AI识别结果</h4>
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-xl border border-green-200">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                    <Camera size={20} className="text-green-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-800">AI分析餐品</div>
+                    <div className="text-sm text-gray-600">
+                      餐次: {
+                        selectedMealType === 'breakfast' ? '早餐' :
+                        selectedMealType === 'lunch' ? '午餐' :
+                        selectedMealType === 'dinner' ? '晚餐' : '加餐'
+                      }
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-green-600">{mealData.totalCalories}千卡</div>
+                    <div className="text-xs text-green-500">AI评分: {mealData.averageScore}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : selectedMealForReport !== 'all' && (
+            <div className="mb-6">
+              <h4 className="font-semibold mb-3">包含食物</h4>
+              <div className="space-y-2">
+                {todayMeals
+                  .filter(meal => meal.mealType === selectedMealForReport)
+                  .map(meal => (
+                    <div key={meal.id} className="flex items-center bg-gray-50 p-3 rounded-lg">
+                      <img src={meal.image} alt={meal.name} className="w-10 h-10 object-cover rounded mr-3" />
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">{meal.name}</div>
+                        <div className="text-xs text-gray-600">{meal.time}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-bold text-green-600">{meal.score}分</div>
+                        <div className="text-xs text-gray-500">{meal.nutrition.calories}千卡</div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          <div className="bg-gray-50 p-4 rounded-lg mb-6">
+            <h4 className="font-semibold mb-3 flex items-center">
+              <Target className="w-4 h-4 mr-2 text-green-600" />
+              AI营养师建议
+            </h4>
+            <div className="space-y-2 text-sm text-gray-700">
+              <div className="flex items-start">
+                <Check className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                <span>营养素配比{mealData.averageScore >= 90 ? '非常' : ''}均衡，有助于身体健康</span>
+              </div>
+              <div className="flex items-start">
+                <Check className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                <span>蛋白质含量{mealData.totalProtein >= 20 ? '充足' : '适中'}，支持肌肉合成</span>
+              </div>
+              {mealData.totalCalories < (selectedMealForReport === 'all' ? 2000 : mealCalorieStandards[selectedMealForReport as keyof typeof mealCalorieStandards] || 500) && (
+                <div className="flex items-start">
+                  <div className="w-4 h-4 bg-yellow-400 rounded-full mr-2 mt-0.5 flex-shrink-0"></div>
+                  <span>热量偏低，建议适当增加健康食物摄入</span>
+                </div>
+              )}
+            </div>
+          </div>
+
           <button 
-            onClick={() => setShowNutritionReport(false)}
-            className="text-gray-500 p-2"
+            onClick={() => {
+              // 如果来自拍照流程，添加新的餐食记录
+              if (isFromPhotoCapture) {
+                // 这里应该将新餐食添加到状态中，但为了演示简化处理
+                // 在实际应用中，可以将餐食数据添加到todayMeals数组中
+                console.log('记录新餐食:', {
+                  mealType: selectedMealType,
+                  nutrition: mealData
+                });
+                setCapturedPhoto(null);
+              }
+              setShowNutritionReport(false);
+              setSelectedMealForReport(null);
+            }}
+            className="w-full bg-green-500 text-white py-3 rounded-lg font-semibold"
           >
-            ✕
+            {isFromPhotoCapture ? '确认并记录餐食' : '确认记录'}
           </button>
         </div>
-
-        <div className="text-center mb-6">
-          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <div className="text-2xl font-bold text-green-600">92</div>
-          </div>
-          <h3 className="text-lg font-semibold mb-1">牛油果吐司配煎蛋</h3>
-          <p className="text-gray-600 text-sm">营养搭配优秀！蛋白质和健康脂肪含量理想</p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="bg-blue-50 p-4 rounded-lg text-center">
-            <div className="text-2xl font-bold text-blue-600 mb-1">420</div>
-            <div className="text-sm text-gray-600">千卡</div>
-          </div>
-          <div className="bg-orange-50 p-4 rounded-lg text-center">
-            <div className="text-2xl font-bold text-orange-600 mb-1">18g</div>
-            <div className="text-sm text-gray-600">蛋白质</div>
-          </div>
-          <div className="bg-green-50 p-4 rounded-lg text-center">
-            <div className="text-2xl font-bold text-green-600 mb-1">35g</div>
-            <div className="text-sm text-gray-600">碳水化合物</div>
-          </div>
-          <div className="bg-purple-50 p-4 rounded-lg text-center">
-            <div className="text-2xl font-bold text-purple-600 mb-1">25g</div>
-            <div className="text-sm text-gray-600">脂肪</div>
-          </div>
-        </div>
-
-        <div className="bg-gray-50 p-4 rounded-lg mb-6">
-          <h4 className="font-semibold mb-3 flex items-center">
-            <Target className="w-4 h-4 mr-2 text-green-600" />
-            AI营养师建议
-          </h4>
-          <div className="space-y-2 text-sm text-gray-700">
-            <div className="flex items-start">
-              <Check className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-              <span>优质脂肪来源，有助于维生素吸收</span>
-            </div>
-            <div className="flex items-start">
-              <Check className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-              <span>纤维含量丰富，增强饱腹感</span>
-            </div>
-            <div className="flex items-start">
-              <div className="w-4 h-4 bg-yellow-400 rounded-full mr-2 mt-0.5 flex-shrink-0"></div>
-              <span>建议搭配水果补充维生素C</span>
-            </div>
-          </div>
-        </div>
-
-        <button 
-          onClick={() => setShowNutritionReport(false)}
-          className="w-full bg-green-500 text-white py-3 rounded-lg font-semibold"
-        >
-          确认记录
-        </button>
       </div>
-    </div>
-  );
+    );
+  };
 
   const KOLPostModal = ({ post }: { post: KOLPost }) => (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
@@ -324,6 +700,70 @@ const App: React.FC = () => {
     </div>
   );
 
+  // 常见食物模态框
+  const CommonFoodsModal = () => {
+    const categoryNames = {
+      protein: '蛋白质',
+      carbs: '碳水化合物', 
+      vegetables: '蔬菜',
+      fruits: '水果',
+      nuts: '坚果',
+      dairy: '乳制品'
+    };
+
+    const categories = ['protein', 'carbs', 'vegetables', 'fruits', 'nuts', 'dairy'] as const;
+
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
+        <div className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold">常见食物营养库</h2>
+            <button 
+              onClick={() => setShowCommonFoods(false)}
+              className="text-gray-500 p-2"
+            >
+              ✕
+            </button>
+          </div>
+
+          {categories.map(category => {
+            const foodsInCategory = commonFoods.filter(food => food.category === category);
+            return (
+              <div key={category} className="mb-6">
+                <h3 className="font-semibold text-gray-800 mb-3">{categoryNames[category]}</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {foodsInCategory.map(food => (
+                    <div 
+                      key={food.id}
+                      onClick={() => {
+                        setShowCommonFoods(false);
+                        alert(`已添加 ${food.name} 到今日饮食记录中`);
+                      }}
+                      className="bg-gray-50 p-4 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center mb-2">
+                        <span className="text-2xl mr-3">{food.icon}</span>
+                        <div>
+                          <div className="font-medium text-sm">{food.name}</div>
+                          <div className="text-xs text-gray-500">{food.nutrition.calories}千卡/100g</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1 text-xs text-gray-600">
+                        <div>蛋白 {food.nutrition.protein}g</div>
+                        <div>碳水 {food.nutrition.carbs}g</div>
+                        <div>脂肪 {food.nutrition.fat}g</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   const AIChat = () => (
     <div className="fixed inset-0 bg-white z-50">
       <div className="flex flex-col h-full">
@@ -413,13 +853,44 @@ const App: React.FC = () => {
           </button>
         </div>
         
+        {/* 分餐选项卡 */}
+        <div className="flex bg-green-300/30 rounded-full p-1 mb-4">
+          {Object.entries(mealTypeNames).map(([key, name]) => (
+            <button
+              key={key}
+              onClick={() => setSelectedMealTime(key)}
+              className={`flex-1 py-2 px-3 rounded-full text-sm font-medium transition-all ${
+                selectedMealTime === key 
+                  ? 'bg-white text-green-700 shadow-sm' 
+                  : 'text-green-100 hover:text-white'
+              }`}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+
         <div className="text-center">
-          <div className="text-3xl font-bold mb-1">{todayNutrition.current.calories}</div>
-          <div className="text-green-100 text-sm">今日摄入热量 / {todayNutrition.target.calories} 千卡</div>
+          <div className="text-3xl font-bold mb-1">
+            {selectedMealTime === 'all' 
+              ? todayNutrition.current.calories 
+              : mealNutritionByType[selectedMealTime as keyof typeof mealNutritionByType]?.calories || 0
+            }
+          </div>
+          <div className="text-green-100 text-sm">
+            {selectedMealTime === 'all' 
+              ? `今日摄入热量 / ${todayNutrition.target.calories} 千卡`
+              : `${mealTypeNames[selectedMealTime as keyof typeof mealTypeNames]}热量摄入 / ${mealCalorieStandards[selectedMealTime as keyof typeof mealCalorieStandards]} 千卡`
+            }
+          </div>
           <div className="w-full bg-green-300 rounded-full h-2 mt-3">
             <div 
               className="bg-white rounded-full h-2 transition-all duration-300"
-              style={{ width: `${(todayNutrition.current.calories / todayNutrition.target.calories) * 100}%` }}
+              style={{ 
+                width: selectedMealTime === 'all' 
+                  ? `${(todayNutrition.current.calories / todayNutrition.target.calories) * 100}%`
+                  : `${((mealNutritionByType[selectedMealTime as keyof typeof mealNutritionByType]?.calories || 0) / mealCalorieStandards[selectedMealTime as keyof typeof mealCalorieStandards]) * 100}%`
+              }}
             ></div>
           </div>
         </div>
@@ -427,27 +898,96 @@ const App: React.FC = () => {
 
       {/* Quick Actions */}
       <div className="p-6">
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-2 gap-3 mb-6">
           <button 
             onClick={() => setShowCamera(true)}
             className="bg-green-500 text-white p-4 rounded-2xl flex items-center justify-center space-x-2 shadow-lg"
           >
-            <Camera size={24} />
-            <span className="font-semibold">拍照记录</span>
+            <Camera size={20} />
+            <span className="font-semibold text-sm">拍照记录</span>
           </button>
           <button 
             onClick={() => setActiveTab('recipes')}
             className="bg-blue-500 text-white p-4 rounded-2xl flex items-center justify-center space-x-2 shadow-lg"
           >
-            <BookOpen size={24} />
-            <span className="font-semibold">AI推荐</span>
+            <BookOpen size={20} />
+            <span className="font-semibold text-sm">AI推荐</span>
           </button>
+        </div>
+
+        {/* 快捷添加餐食 */}
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">快捷记录</h3>
+          <div className="grid grid-cols-4 gap-3">
+            <button 
+              onClick={() => setShowCommonFoods(true)}
+              className="bg-white p-3 rounded-xl shadow-sm flex flex-col items-center space-y-1 hover:shadow-md transition-shadow"
+            >
+              <Coffee className="w-5 h-5 text-orange-500" />
+              <span className="text-xs text-gray-600">早餐</span>
+            </button>
+            <button 
+              onClick={() => setShowCommonFoods(true)}
+              className="bg-white p-3 rounded-xl shadow-sm flex flex-col items-center space-y-1 hover:shadow-md transition-shadow"
+            >
+              <Utensils className="w-5 h-5 text-green-500" />
+              <span className="text-xs text-gray-600">午餐</span>
+            </button>
+            <button 
+              onClick={() => setShowCommonFoods(true)}
+              className="bg-white p-3 rounded-xl shadow-sm flex flex-col items-center space-y-1 hover:shadow-md transition-shadow"
+            >
+              <Sandwich className="w-5 h-5 text-blue-500" />
+              <span className="text-xs text-gray-600">晚餐</span>
+            </button>
+            <button 
+              onClick={() => setShowCommonFoods(true)}
+              className="bg-white p-3 rounded-xl shadow-sm flex flex-col items-center space-y-1 hover:shadow-md transition-shadow"
+            >
+              <Apple className="w-5 h-5 text-red-500" />
+              <span className="text-xs text-gray-600">加餐</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 今日目标进度概览 */}
+        <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-2xl mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-800">今日目标</h3>
+            <span className="text-xs text-gray-600">82% 完成</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white/70 rounded-lg p-3 text-center">
+              <div className="text-lg font-bold text-green-600 mb-1">
+                {todayNutrition.current.calories}
+              </div>
+              <div className="text-xs text-gray-600">千卡 / {todayNutrition.target.calories}</div>
+              <div className="w-full bg-gray-200 rounded-full h-1 mt-2">
+                <div 
+                  className="h-1 rounded-full bg-green-500"
+                  style={{ width: `${Math.min((todayNutrition.current.calories / todayNutrition.target.calories) * 100, 100)}%` }}
+                ></div>
+              </div>
+            </div>
+            <div className="bg-white/70 rounded-lg p-3 text-center">
+              <div className="text-lg font-bold text-orange-600 mb-1">
+                {todayNutrition.current.protein}g
+              </div>
+              <div className="text-xs text-gray-600">蛋白质 / {todayNutrition.target.protein}g</div>
+              <div className="w-full bg-gray-200 rounded-full h-1 mt-2">
+                <div 
+                  className="h-1 rounded-full bg-orange-500"
+                  style={{ width: `${Math.min((todayNutrition.current.protein / todayNutrition.target.protein) * 100, 100)}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Nutrition Overview */}
         <div className="mb-6">
           <h2 className="text-lg font-bold mb-4">今日营养概览</h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             {renderNutritionCard(
               '蛋白质', 
               todayNutrition.current.protein, 
@@ -462,6 +1002,34 @@ const App: React.FC = () => {
               'g', 
               'bg-green-500'
             )}
+            {renderNutritionCard(
+              '脂肪', 
+              todayNutrition.current.fat, 
+              todayNutrition.target.fat, 
+              'g', 
+              'bg-purple-500'
+            )}
+            {renderNutritionCard(
+              '膳食纤维', 
+              todayNutrition.current.fiber, 
+              todayNutrition.target.fiber, 
+              'g', 
+              'bg-blue-500'
+            )}
+            {renderNutritionCard(
+              '钠', 
+              todayNutrition.current.sodium, 
+              todayNutrition.target.sodium, 
+              'mg', 
+              'bg-red-500'
+            )}
+            {renderNutritionCard(
+              '热量密度', 
+              Math.round((todayNutrition.current.calories / todayNutrition.target.calories) * 100), 
+              100, 
+              '%', 
+              'bg-indigo-500'
+            )}
           </div>
         </div>
 
@@ -469,48 +1037,371 @@ const App: React.FC = () => {
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-bold">今日饮食</h2>
-            <button 
-              onClick={() => setShowNutritionReport(true)}
-              className="text-green-500 text-sm font-medium"
-            >
-              查看详报
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setSelectedMealForReport(selectedMealForReport ? null : 'menu')}
+                className="text-green-500 text-sm font-medium"
+              >
+                查看详报 {selectedMealForReport === 'menu' ? '▲' : '▼'}
+              </button>
+              
+              {/* 餐次选择下拉菜单 */}
+              {selectedMealForReport === 'menu' && (
+                <div className="absolute top-8 right-0 bg-white border rounded-lg shadow-lg p-2 z-10 min-w-[120px]">
+                  <button 
+                    onClick={() => {
+                      setSelectedMealForReport('all');
+                      setShowNutritionReport(true);
+                    }}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded"
+                  >
+                    全天汇总
+                  </button>
+                  {['breakfast', 'lunch', 'dinner', 'snack'].map((mealType) => {
+                    const mealsOfType = todayMeals.filter(meal => meal.mealType === mealType);
+                    if (mealsOfType.length === 0) return null;
+                    
+                    return (
+                      <button 
+                        key={mealType}
+                        onClick={() => {
+                          setSelectedMealForReport(mealType);
+                          setShowNutritionReport(true);
+                        }}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded"
+                      >
+                        {mealTypeNames[mealType as keyof typeof mealTypeNames]}详报
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
           
-          <div className="space-y-3">
-            {todayMeals.map((meal) => (
-              <div 
-                key={meal.id}
-                onClick={() => setSelectedMeal(meal)}
-                className="bg-white p-4 rounded-lg shadow-sm flex items-center cursor-pointer hover:shadow-md transition-shadow"
-              >
-                <img src={meal.image} alt={meal.name} className="w-16 h-16 object-cover rounded-lg mr-4" />
-                <div className="flex-1">
-                  <div className="font-semibold mb-1">{meal.name}</div>
-                  <div className="text-sm text-gray-600 mb-1">{meal.time}</div>
-                  <div className="text-sm text-gray-500">{meal.nutrition.calories} 千卡</div>
+          {/* 按餐类分组显示 */}
+          {['breakfast', 'lunch', 'dinner', 'snack'].map((mealType) => {
+            const mealsOfType = todayMeals.filter(meal => meal.mealType === mealType);
+            if (mealsOfType.length === 0) return null;
+            
+            return (
+              <div key={mealType} className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-medium text-gray-700 text-sm">
+                    {mealTypeNames[mealType as keyof typeof mealTypeNames]}
+                  </h3>
+                  <div className="text-xs text-gray-500">
+                    {mealsOfType.reduce((sum, meal) => sum + meal.nutrition.calories, 0)} 千卡
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-green-600">{meal.score}</div>
-                  <div className="text-xs text-gray-500">营养分</div>
+                <div className="space-y-2">
+                  {mealsOfType.map((meal) => (
+                    <div 
+                      key={meal.id}
+                      onClick={() => setSelectedMeal(meal)}
+                      className="bg-white p-3 rounded-lg shadow-sm flex items-center cursor-pointer hover:shadow-md transition-shadow"
+                    >
+                      <img src={meal.image} alt={meal.name} className="w-12 h-12 object-cover rounded-lg mr-3" />
+                      <div className="flex-1">
+                        <div className="font-medium mb-1 text-sm">{meal.name}</div>
+                        <div className="text-xs text-gray-600 mb-1">{meal.time}</div>
+                        <div className="text-xs text-gray-500">
+                          {meal.nutrition.calories}千卡 • {meal.nutrition.protein}g蛋白质
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-green-600">{meal.score}</div>
+                        <div className="text-xs text-gray-500">分</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
 
         {/* Health Insights */}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-2xl">
-          <div className="flex items-center mb-3">
-            <TrendingUp className="w-5 h-5 text-blue-600 mr-2" />
-            <h3 className="font-semibold text-blue-800">健康洞察</h3>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <TrendingUp className="w-5 h-5 text-blue-600 mr-2" />
+              <h3 className="font-semibold text-blue-800">健康洞察</h3>
+            </div>
+            
+            {/* 洞察期间选择 */}
+            <div className="flex bg-white rounded-full p-1">
+              {Object.entries(insightPeriods).map(([key, name]) => (
+                <button
+                  key={key}
+                  onClick={() => setSelectedInsightPeriod(key)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                    selectedInsightPeriod === key 
+                      ? 'bg-blue-500 text-white' 
+                      : 'text-blue-600 hover:bg-blue-100'
+                  }`}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
           </div>
-          <p className="text-sm text-blue-700 mb-3">
-            您本周的蛋白质摄入非常稳定，维持在推荐范围内。建议继续保持，并适当增加深色蔬菜的摄入。
-          </p>
-          <button className="text-blue-600 text-sm font-medium">
-            查看详细分析 →
+
+          {/* 根据选择的期间显示不同内容 */}
+          {selectedInsightPeriod === 'today' && (
+            <div>
+              <div className="flex items-center mb-3">
+                <BarChart3 className="w-4 h-4 text-blue-600 mr-2" />
+                <span className="font-medium text-sm">今日营养评估</span>
+              </div>
+              
+              {/* Apple Watch风格圆环图 */}
+              <div className="bg-white/70 rounded-lg p-4 mb-3">
+                <div className="flex justify-center mb-4">
+                  <div className="relative w-32 h-32">
+                    {/* 圆环图容器 */}
+                    <div className="absolute inset-0">
+                      <svg width="128" height="128" className="transform -rotate-90">
+                        {/* 背景圆环 */}
+                        <circle
+                          cx="64"
+                          cy="64"
+                          r="55"
+                          stroke="#e5e7eb"
+                          strokeWidth="8"
+                          fill="transparent"
+                        />
+                        {/* 热量圆环 */}
+                        <circle
+                          cx="64"
+                          cy="64"
+                          r="55"
+                          stroke="#10b981"
+                          strokeWidth="8"
+                          fill="transparent"
+                          strokeDasharray={`${2 * Math.PI * 55}`}
+                          strokeDashoffset={`${2 * Math.PI * 55 * (1 - todayNutrition.current.calories / todayNutrition.target.calories)}`}
+                          strokeLinecap="round"
+                        />
+                        {/* 蛋白质圆环 */}
+                        <circle
+                          cx="64"
+                          cy="64"
+                          r="45"
+                          stroke="#f59e0b"
+                          strokeWidth="6"
+                          fill="transparent"
+                          strokeDasharray={`${2 * Math.PI * 45}`}
+                          strokeDashoffset={`${2 * Math.PI * 45 * (1 - todayNutrition.current.protein / todayNutrition.target.protein)}`}
+                          strokeLinecap="round"
+                        />
+                        {/* 碳水化合物圆环 */}
+                        <circle
+                          cx="64"
+                          cy="64"
+                          r="35"
+                          stroke="#3b82f6"
+                          strokeWidth="5"
+                          fill="transparent"
+                          strokeDasharray={`${2 * Math.PI * 35}`}
+                          strokeDashoffset={`${2 * Math.PI * 35 * (1 - todayNutrition.current.carbs / todayNutrition.target.carbs)}`}
+                          strokeLinecap="round"
+                        />
+                        {/* 脂肪圆环 */}
+                        <circle
+                          cx="64"
+                          cy="64"
+                          r="26"
+                          stroke="#8b5cf6"
+                          strokeWidth="4"
+                          fill="transparent"
+                          strokeDasharray={`${2 * Math.PI * 26}`}
+                          strokeDashoffset={`${2 * Math.PI * 26 * (1 - todayNutrition.current.fat / todayNutrition.target.fat)}`}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    </div>
+                    
+                    {/* 中心文字 */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-gray-800">82%</div>
+                        <div className="text-xs text-gray-600">完成度</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 图例 */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                    <span>热量 {Math.round((todayNutrition.current.calories / todayNutrition.target.calories) * 100)}%</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-amber-500 rounded-full mr-2"></div>
+                    <span>蛋白质 {Math.round((todayNutrition.current.protein / todayNutrition.target.protein) * 100)}%</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                    <span>碳水 {Math.round((todayNutrition.current.carbs / todayNutrition.target.carbs) * 100)}%</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
+                    <span>脂肪 {Math.round((todayNutrition.current.fat / todayNutrition.target.fat) * 100)}%</span>
+                  </div>
+                </div>
+              </div>
+              
+              <p className="text-sm text-blue-700 mb-3">
+                今日摄入均衡度良好！蛋白质达标率{Math.round((todayNutrition.current.protein / todayNutrition.target.protein) * 100)}%，建议晚间补充一份低脂酸奶。
+              </p>
+            </div>
+          )}
+
+          {selectedInsightPeriod === 'week' && (
+            <div>
+              <div className="flex items-center mb-3">
+                <TrendingUp className="w-4 h-4 text-purple-600 mr-2" />
+                <span className="font-medium text-sm">本周趋势分析</span>
+              </div>
+              
+              {/* 使用Recharts的折线图 */}
+              <div className="bg-white/70 rounded-lg p-3 mb-3">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-xs font-medium text-gray-600">本周营养趋势</span>
+                  <span className="text-xs text-gray-500">平均1953千卡</span>
+                </div>
+                
+                <div className="h-32">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={weeklyTrends}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis 
+                        dataKey="day" 
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 10, fill: '#6b7280' }}
+                      />
+                      <YAxis hide />
+                      <Line 
+                        type="monotone" 
+                        dataKey="calories" 
+                        stroke="#10b981" 
+                        strokeWidth={2}
+                        dot={{ fill: '#10b981', strokeWidth: 2, r: 3 }}
+                        activeDot={{ r: 4, fill: '#10b981' }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="protein" 
+                        stroke="#f59e0b" 
+                        strokeWidth={2}
+                        dot={{ fill: '#f59e0b', strokeWidth: 2, r: 3 }}
+                        activeDot={{ r: 4, fill: '#f59e0b' }}
+                        yAxisId="protein"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                
+                {/* 图例 */}
+                <div className="flex justify-center space-x-4 mt-2">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                    <span className="text-xs text-gray-600">热量</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-amber-500 rounded-full mr-1"></div>
+                    <span className="text-xs text-gray-600">蛋白质</span>
+                  </div>
+                </div>
+              </div>
+              
+              <p className="text-sm text-blue-700 mb-3">
+                本周营养摄入稳定性优秀，平均营养分89分。蛋白质摄入呈上升趋势。
+              </p>
+              
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="bg-white/70 rounded-lg p-2">
+                  <div className="font-bold text-green-600">89</div>
+                  <div className="text-gray-600">平均分</div>
+                </div>
+                <div className="bg-white/70 rounded-lg p-2">
+                  <div className="font-bold text-orange-600">+8%</div>
+                  <div className="text-gray-600">蛋白质↗</div>
+                </div>
+                <div className="bg-white/70 rounded-lg p-2">
+                  <div className="font-bold text-blue-600">7天</div>
+                  <div className="text-gray-600">连续记录</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <button className="text-blue-600 text-sm font-medium mt-3 flex items-center">
+            查看详细分析 
+            <TrendingUp className="w-3 h-3 ml-1" />
           </button>
+        </div>
+
+        {/* 水分摄入追踪 */}
+        <div className="bg-gradient-to-r from-cyan-50 to-blue-50 p-4 rounded-2xl mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center">
+              <Droplets className="w-5 h-5 text-cyan-600 mr-2" />
+              <h3 className="font-semibold text-cyan-800">今日水分</h3>
+            </div>
+            <button 
+              onClick={() => alert('添加200ml水分记录')}
+              className="bg-cyan-500 text-white px-3 py-1 rounded-full text-xs font-medium flex items-center"
+            >
+              <Plus size={12} className="mr-1" />
+              记录
+            </button>
+          </div>
+          <div className="flex items-center space-x-3">
+            <div className="flex-1">
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-cyan-700">1600ml</span>
+                <span className="text-cyan-600">/2000ml</span>
+              </div>
+              <div className="w-full bg-cyan-200 rounded-full h-2">
+                <div 
+                  className="h-2 rounded-full bg-cyan-500 transition-all duration-300"
+                  style={{ width: '80%' }}
+                ></div>
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-cyan-600">80%</div>
+              <div className="text-xs text-cyan-600">完成</div>
+            </div>
+          </div>
+        </div>
+
+        {/* 智能提醒 */}
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-2xl mb-6">
+          <div className="flex items-center mb-3">
+            <Zap className="w-5 h-5 text-amber-600 mr-2" />
+            <h3 className="font-semibold text-amber-800">智能提醒</h3>
+          </div>
+          <div className="space-y-2">
+            <div className="bg-white/70 rounded-lg p-3 flex items-center">
+              <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
+              <div className="flex-1">
+                <div className="text-sm font-medium text-gray-800">距离晚餐时间还有2小时</div>
+                <div className="text-xs text-gray-600">建议现在来点健康零食补充能量</div>
+              </div>
+            </div>
+            <div className="bg-white/70 rounded-lg p-3 flex items-center">
+              <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+              <div className="flex-1">
+                <div className="text-sm font-medium text-gray-800">膳食纤维已超标！</div>
+                <div className="text-xs text-gray-600">今日纤维摄入优秀，有助消化健康</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -794,9 +1685,11 @@ const App: React.FC = () => {
 
       {/* Modals */}
       {showCamera && <CameraView />}
+      {showMealSelection && <MealSelectionModal />}
       {showNutritionReport && <NutritionReportModal />}
       {aiChatOpen && <AIChat />}
       {selectedKOLPost && <KOLPostModal post={selectedKOLPost} />}
+      {showCommonFoods && <CommonFoodsModal />}
     </div>
   );
 };
