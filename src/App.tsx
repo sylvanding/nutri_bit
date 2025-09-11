@@ -182,6 +182,151 @@ const App: React.FC = () => {
   // 新增状态：拍照后的餐次选择
   const [showMealSelection, setShowMealSelection] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  
+  // 菜品修正相关状态
+  const [showFoodCorrectionModal, setShowFoodCorrectionModal] = useState(false);
+  const [correctionFoodIndex, setCorrectionFoodIndex] = useState<number>(-1);
+  const [correctionType, setCorrectionType] = useState<'weight' | 'food'>('weight');
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // 菜品数据库
+  const foodDatabase = [
+    { id: 1, name: '宫保鸡丁', category: '川菜', calories: 180, protein: 20, carbs: 8, fat: 8, description: '经典川菜，鸡丁配花生' },
+    { id: 2, name: '麻婆豆腐', category: '川菜', calories: 150, protein: 12, carbs: 6, fat: 10, description: '嫩滑豆腐配麻辣调料' },
+    { id: 3, name: '红烧肉', category: '家常菜', calories: 280, protein: 18, carbs: 12, fat: 20, description: '肥瘦相间，香甜软糯' },
+    { id: 4, name: '清蒸鲈鱼', category: '粤菜', calories: 120, protein: 25, carbs: 2, fat: 3, description: '鲜嫩鱼肉，清淡营养' },
+    { id: 5, name: '蒸蛋羹', category: '家常菜', calories: 80, protein: 6, carbs: 1, fat: 5, description: '嫩滑蛋羹，营养丰富' },
+    { id: 6, name: '白米饭', category: '主食', calories: 130, protein: 3, carbs: 28, fat: 0.3, description: '经典主食，提供能量' },
+    { id: 7, name: '青椒炒肉丝', category: '家常菜', calories: 160, protein: 15, carbs: 8, fat: 8, description: '青椒脆嫩，肉丝鲜美' },
+    { id: 8, name: '西红柿鸡蛋', category: '家常菜', calories: 100, protein: 8, carbs: 6, fat: 6, description: '酸甜开胃，营养均衡' },
+    { id: 9, name: '土豆丝', category: '素菜', calories: 90, protein: 2, carbs: 18, fat: 2, description: '爽脆土豆丝，清淡可口' },
+    { id: 10, name: '紫菜蛋花汤', category: '汤品', calories: 60, protein: 4, carbs: 3, fat: 3, description: '清淡汤品，营养补充' },
+    { id: 11, name: '糖醋里脊', category: '鲁菜', calories: 220, protein: 16, carbs: 25, fat: 8, description: '酸甜可口，外酥内嫩' },
+    { id: 12, name: '油焖大虾', category: '鲁菜', calories: 140, protein: 20, carbs: 3, fat: 5, description: '鲜美大虾，营养丰富' },
+    { id: 13, name: '酸辣土豆丝', category: '川菜', calories: 95, protein: 2, carbs: 18, fat: 3, description: '酸辣开胃，爽脆可口' },
+    { id: 14, name: '小笼包', category: '点心', calories: 250, protein: 12, carbs: 35, fat: 8, description: '皮薄馅大，汤汁丰富' },
+    { id: 15, name: '煎饺', category: '点心', calories: 200, protein: 10, carbs: 25, fat: 8, description: '外焦内嫩，香味浓郁' }
+  ];
+  
+  // 重新计算营养摘要的函数
+  const recalculateNutritionSummary = (detectedFoods: any[]) => {
+    const totalCalories = detectedFoods.reduce((sum, food) => sum + food.nutrition.calories, 0);
+    const totalProtein = detectedFoods.reduce((sum, food) => sum + food.nutrition.protein, 0);
+    const totalCarbs = detectedFoods.reduce((sum, food) => sum + food.nutrition.carbs, 0);
+    const totalFat = detectedFoods.reduce((sum, food) => sum + food.nutrition.fat, 0);
+    const totalFiber = detectedFoods.reduce((sum, food) => sum + food.nutrition.fiber, 0);
+    const totalSodium = detectedFoods.reduce((sum, food) => sum + food.nutrition.sodium, 0);
+    
+    // 重新计算营养评分
+    let nutritionScore = 80; // 基础分
+    
+    // 蛋白质评分 (20-40g 最佳)
+    if (totalProtein >= 20 && totalProtein <= 40) nutritionScore += 5;
+    else if (totalProtein < 15 || totalProtein > 50) nutritionScore -= 10;
+    
+    // 脂肪比例评分 (20-35% 最佳)
+    const fatRatio = (totalFat * 9) / totalCalories;
+    if (fatRatio >= 0.2 && fatRatio <= 0.35) nutritionScore += 5;
+    else if (fatRatio < 0.15 || fatRatio > 0.4) nutritionScore -= 10;
+    
+    // 碳水比例评分 (45-65% 最佳)
+    const carbRatio = (totalCarbs * 4) / totalCalories;
+    if (carbRatio >= 0.45 && carbRatio <= 0.65) nutritionScore += 5;
+    else if (carbRatio < 0.3 || carbRatio > 0.7) nutritionScore -= 10;
+    
+    // 钠含量评分 (低于800mg较好)
+    if (totalSodium < 600) nutritionScore += 5;
+    else if (totalSodium > 1000) nutritionScore -= 10;
+    
+    // 确保评分在合理范围内
+    nutritionScore = Math.max(40, Math.min(100, nutritionScore));
+    
+    return {
+      calories: Math.round(totalCalories),
+      protein: Math.round(totalProtein * 10) / 10,
+      carbs: Math.round(totalCarbs * 10) / 10,
+      fat: Math.round(totalFat * 10) / 10,
+      fiber: Math.round(totalFiber * 10) / 10,
+      sodium: Math.round(totalSodium),
+      nutritionScore
+    };
+  };
+
+  // 修正食物的函数
+  const handleWeightCorrection = (newWeight: number) => {
+    if (!analysisResults || correctionFoodIndex === -1) return;
+    
+    const updatedFoods = [...analysisResults.detectedFoods];
+    const food = updatedFoods[correctionFoodIndex];
+    const ratio = newWeight / food.weight;
+    
+    // 按比例调整营养成分
+    updatedFoods[correctionFoodIndex] = {
+      ...food,
+      weight: newWeight,
+      nutrition: {
+        calories: Math.round(food.nutrition.calories * ratio),
+        protein: Math.round(food.nutrition.protein * ratio * 10) / 10,
+        carbs: Math.round(food.nutrition.carbs * ratio * 10) / 10,
+        fat: Math.round(food.nutrition.fat * ratio * 10) / 10,
+        fiber: Math.round(food.nutrition.fiber * ratio * 10) / 10,
+        sodium: Math.round(food.nutrition.sodium * ratio)
+      }
+    };
+    
+    // 重新计算营养摘要
+    const newNutritionSummary = recalculateNutritionSummary(updatedFoods);
+    
+    setAnalysisResults({
+      ...analysisResults,
+      detectedFoods: updatedFoods,
+      nutritionSummary: newNutritionSummary,
+      nutritionScore: newNutritionSummary.nutritionScore
+    });
+    
+    setShowFoodCorrectionModal(false);
+  };
+  
+  const handleFoodReplacement = (newFood: any, weight: number) => {
+    if (!analysisResults || correctionFoodIndex === -1) return;
+    
+    const updatedFoods = [...analysisResults.detectedFoods];
+    const ratio = weight / 100; // 数据库中的营养成分基于100g
+    
+    // 生成新的食材列表（简化版）
+    const newIngredients = [
+      { name: newFood.name, amount: `${weight}g`, category: 'protein' }
+    ];
+    
+    updatedFoods[correctionFoodIndex] = {
+      id: Date.now(),
+      name: newFood.name,
+      weight: weight,
+      confidence: 100, // 手动选择的置信度为100%
+      nutrition: {
+        calories: Math.round(newFood.calories * ratio),
+        protein: Math.round(newFood.protein * ratio * 10) / 10,
+        carbs: Math.round(newFood.carbs * ratio * 10) / 10,
+        fat: Math.round(newFood.fat * ratio * 10) / 10,
+        fiber: 2.0, // 默认值
+        sodium: 300 // 默认值
+      },
+      ingredients: newIngredients
+    };
+    
+    // 重新计算营养摘要
+    const newNutritionSummary = recalculateNutritionSummary(updatedFoods);
+    
+    setAnalysisResults({
+      ...analysisResults,
+      detectedFoods: updatedFoods,
+      nutritionSummary: newNutritionSummary,
+      nutritionScore: newNutritionSummary.nutritionScore
+    });
+    
+    setShowFoodCorrectionModal(false);
+  };
+  
   const [selectedMealType, setSelectedMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('breakfast');
   const [selectedMealTime, setSelectedMealTime] = useState('all');
   const [selectedInsightPeriod, setSelectedInsightPeriod] = useState('today');
@@ -2575,6 +2720,32 @@ const App: React.FC = () => {
                           </div>
                         </div>
 
+                        {/* 修正按钮区域 */}
+                        <div className="mt-4 flex space-x-2">
+                          <button
+                            onClick={() => {
+                              setCorrectionFoodIndex(index);
+                              setCorrectionType('weight');
+                              setShowFoodCorrectionModal(true);
+                            }}
+                            className="flex-1 flex items-center justify-center space-x-2 bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-lg transition-all duration-200 border border-blue-200"
+                          >
+                            <span className="text-sm">⚖️</span>
+                            <span className="text-sm font-medium">调整重量</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setCorrectionFoodIndex(index);
+                              setCorrectionType('food');
+                              setShowFoodCorrectionModal(true);
+                            }}
+                            className="flex-1 flex items-center justify-center space-x-2 bg-orange-50 hover:bg-orange-100 text-orange-700 px-3 py-2 rounded-lg transition-all duration-200 border border-orange-200"
+                          >
+                            <span className="text-sm">🔄</span>
+                            <span className="text-sm font-medium">更换菜品</span>
+                          </button>
+                        </div>
+
                         {/* 底部装饰线 */}
                         <div className={`mt-3 h-1 rounded-full bg-gradient-to-r ${getConfidenceColor(food.confidence)} opacity-60`}></div>
                       </div>
@@ -4682,6 +4853,225 @@ const App: React.FC = () => {
     );
   };
 
+  // 菜品修正模态框组件
+  const FoodCorrectionModal = () => {
+    const [newWeight, setNewWeight] = useState<number>(100);
+    const [selectedFoodId, setSelectedFoodId] = useState<number | null>(null);
+    const [correctionWeight, setCorrectionWeight] = useState<number>(100);
+    
+    if (!analysisResults || correctionFoodIndex === -1) return null;
+    
+    const currentFood = analysisResults.detectedFoods[correctionFoodIndex];
+    
+    // 过滤食物数据库
+    const filteredFoods = foodDatabase.filter(food =>
+      food.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      food.category.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] overflow-hidden shadow-2xl">
+          {/* 头部 */}
+          <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">
+                {correctionType === 'weight' ? '调整重量' : '更换菜品'}
+              </h2>
+              <button 
+                onClick={() => setShowFoodCorrectionModal(false)}
+                className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-all"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-sm opacity-90 mt-2">
+              当前食物：{currentFood.name} ({currentFood.weight}g)
+            </p>
+          </div>
+
+          <div className="p-6 max-h-[70vh] overflow-y-auto">
+            {correctionType === 'weight' ? (
+              /* 重量调整界面 */
+              <div className="space-y-6">
+                <div className="text-center">
+                  <div className="text-4xl mb-2">{currentFood.name.includes('鸡') ? '🍗' : currentFood.name.includes('米饭') ? '🍚' : '🍽️'}</div>
+                  <div className="text-lg font-semibold text-gray-800">{currentFood.name}</div>
+                  <div className="text-sm text-gray-600">当前重量: {currentFood.weight}g</div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    新重量 (克)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={newWeight}
+                      onChange={(e) => setNewWeight(Number(e.target.value))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center text-lg font-semibold"
+                      min="1"
+                      max="1000"
+                    />
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                      g
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 预设重量按钮 */}
+                <div className="grid grid-cols-3 gap-2">
+                  {[50, 100, 150, 200, 250, 300].map(weight => (
+                    <button
+                      key={weight}
+                      onClick={() => setNewWeight(weight)}
+                      className={`py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                        newWeight === weight 
+                          ? 'bg-blue-500 text-white' 
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {weight}g
+                    </button>
+                  ))}
+                </div>
+                
+                {/* 营养预览 */}
+                <div className="bg-gray-50 p-4 rounded-xl">
+                  <div className="text-sm font-medium text-gray-700 mb-2">调整后营养成分</div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>热量: {Math.round(currentFood.nutrition.calories * newWeight / currentFood.weight)}千卡</div>
+                    <div>蛋白质: {Math.round(currentFood.nutrition.protein * newWeight / currentFood.weight * 10) / 10}g</div>
+                    <div>碳水: {Math.round(currentFood.nutrition.carbs * newWeight / currentFood.weight * 10) / 10}g</div>
+                    <div>脂肪: {Math.round(currentFood.nutrition.fat * newWeight / currentFood.weight * 10) / 10}g</div>
+                  </div>
+                </div>
+                
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setShowFoodCorrectionModal(false)}
+                    className="flex-1 py-3 px-4 bg-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-300 transition-all"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={() => handleWeightCorrection(newWeight)}
+                    className="flex-1 py-3 px-4 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-all"
+                  >
+                    确认调整
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* 菜品替换界面 */
+              <div className="space-y-6">
+                {/* 搜索框 */}
+                <div className="relative">
+                  <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="搜索菜品名称或类别..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  />
+                </div>
+                
+                {/* 菜品列表 */}
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {filteredFoods.map(food => (
+                    <div 
+                      key={food.id}
+                      onClick={() => setSelectedFoodId(food.id)}
+                      className={`p-3 rounded-xl cursor-pointer transition-all ${
+                        selectedFoodId === food.id 
+                          ? 'bg-orange-50 border-2 border-orange-500' 
+                          : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-gray-800">{food.name}</div>
+                          <div className="text-xs text-gray-600">{food.category} • {food.calories}千卡/100g</div>
+                          <div className="text-xs text-gray-500 mt-1">{food.description}</div>
+                        </div>
+                        <div className="text-xl">
+                          {food.name.includes('鸡') ? '🍗' : 
+                           food.name.includes('米饭') ? '🍚' : 
+                           food.name.includes('豆腐') ? '🧀' : 
+                           food.name.includes('鱼') ? '🐟' : '🍽️'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                {/* 重量设置 */}
+                {selectedFoodId && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      设置重量 (克)
+                    </label>
+                    <input
+                      type="number"
+                      value={correctionWeight}
+                      onChange={(e) => setCorrectionWeight(Number(e.target.value))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-center text-lg font-semibold"
+                      min="1"
+                      max="1000"
+                    />
+                  </div>
+                )}
+                
+                {/* 操作按钮 */}
+                <div className="space-y-3">
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => setShowFoodCorrectionModal(false)}
+                      className="flex-1 py-3 px-4 bg-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-300 transition-all"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (selectedFoodId) {
+                          const selectedFood = foodDatabase.find(f => f.id === selectedFoodId);
+                          if (selectedFood) {
+                            handleFoodReplacement(selectedFood, correctionWeight);
+                          }
+                        }
+                      }}
+                      disabled={!selectedFoodId}
+                      className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${
+                        selectedFoodId 
+                          ? 'bg-orange-500 text-white hover:bg-orange-600' 
+                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      }`}
+                    >
+                      确认替换
+                    </button>
+                  </div>
+                  
+                  {/* 重新拍照选项 */}
+                  <button
+                    onClick={() => {
+                      setShowFoodCorrectionModal(false);
+                      setShowCamera(true);
+                    }}
+                    className="w-full py-3 px-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:from-purple-600 hover:to-pink-600 transition-all flex items-center justify-center space-x-2"
+                  >
+                    <Camera size={20} />
+                    <span>重新拍照识别</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const tabs = [
     { id: 'home', name: '首页', icon: Home },
     { id: 'recipes', name: '菜谱', icon: BookOpen },
@@ -4733,6 +5123,7 @@ const App: React.FC = () => {
       {showProfileSetup && <HealthProfileSetup />}
       {showHealthProfile && <HealthProfileView />}
       {showPurchaseModal && selectedDietPlan && <PurchaseModal plan={selectedDietPlan} />}
+      {showFoodCorrectionModal && <FoodCorrectionModal />}
     </div>
   );
 };
