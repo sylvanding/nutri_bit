@@ -5247,6 +5247,7 @@ const App: React.FC = () => {
     { id: 'home', name: '首页', icon: Home },
     { id: 'recipes', name: '菜谱', icon: BookOpen },
     { id: 'store', name: '商城', icon: ShoppingCart },
+    { id: 'gamification', name: '成就', icon: Award },
     { id: 'community', name: '社区', icon: Users },
     { id: 'profile', name: '我的', icon: User }
   ];
