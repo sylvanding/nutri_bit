@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Camera, Home, BookOpen, Users, User, MessageCircle, TrendingUp, Target, Award, ShoppingCart, Heart, Star, Clock, Zap, Check, BarChart3, Plus, Utensils, Coffee, Sandwich, Apple, Droplets, Filter, Search, Tag, Sparkles, Crown, Shield } from 'lucide-react';
+import { Camera, Home, BookOpen, Users, User, MessageCircle, TrendingUp, Target, Award, ShoppingCart, Heart, Star, Clock, Zap, Check, BarChart3, Plus, Utensils, Coffee, Sandwich, Apple, Droplets, Filter, Search, Tag, Sparkles, Crown, Brain, Eye, Cpu, Wand2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import UltraSimpleGamificationPanel from './components/gamification/UltraSimpleGamificationPanel';
 import { useUltraSimpleGamificationStore } from './stores/ultraSimpleGamificationStore';
@@ -352,8 +352,7 @@ const App: React.FC = () => {
   }>>([]);
   const [currentAnalysisStep, setCurrentAnalysisStep] = useState(-1);
   
-  // 分析步骤容器的ref，用于控制滚动
-  const analysisStepsRef = React.useRef<HTMLDivElement>(null);
+  // 移除了分析步骤滚动控制的ref
   
   // 自动关闭倒计时状态
   const [autoCloseCountdown, setAutoCloseCountdown] = useState<number | null>(null);
@@ -400,21 +399,7 @@ const App: React.FC = () => {
     }
   }, [analysisResults, currentAnalysisStep]);
 
-  // 监听分析步骤变化，自动滚动到最新步骤
-  React.useEffect(() => {
-    if (analysisStepsRef.current && currentAnalysisStep >= 0) {
-      // 延迟一点时间确保DOM更新完成
-      setTimeout(() => {
-        if (analysisStepsRef.current) {
-          // 滚动到容器底部，显示最新的分析步骤
-          analysisStepsRef.current.scrollTo({
-            top: analysisStepsRef.current.scrollHeight,
-            behavior: 'smooth'
-          });
-        }
-      }, 100);
-    }
-  }, [currentAnalysisStep, aiAnalysisSteps]);
+  // 不再自动滚动，让用户可以自由查看分析步骤
 
   // 监听分析完成状态，自动收起分析界面
   React.useEffect(() => {
@@ -1762,85 +1747,137 @@ const App: React.FC = () => {
   };
 
   const CameraView = () => (
-    <div className="fixed inset-0 bg-black z-50 overflow-hidden">
+    <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-purple-900 z-50 overflow-hidden">
+      {/* 动态背景粒子 */}
+      <div className="absolute inset-0 overflow-hidden">
+        {[...Array(30)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-1 h-1 bg-white rounded-full opacity-20"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animation: `particle-float ${6 + Math.random() * 4}s linear infinite`,
+              animationDelay: `${Math.random() * 5}s`
+            }}
+          />
+        ))}
+      </div>
+      
       <div className="relative h-full">
-        {/* 顶部导航栏 - 美化版 */}
-        <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/60 to-transparent">
+        {/* 顶部导航栏 - 超美化版 */}
+        <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
           <div className="flex justify-between items-center p-6 pt-12">
             <button 
               onClick={() => setShowCamera(false)}
-              className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white border border-white/30 hover:bg-white/30 transition-all duration-300 shadow-lg"
+              className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/20 hover:bg-white/20 transition-all duration-300 shadow-xl transform hover:scale-110 active:scale-95"
             >
               ✕
             </button>
             <div className="text-white text-center flex-1 mx-4">
-              <div className="text-xl font-bold drop-shadow-lg mb-1">🤖 AI营养识别</div>
-              <div className="text-sm opacity-90 font-medium">智能识别中式美食，精准分析营养成分</div>
+              <div className="text-xl font-bold drop-shadow-lg mb-1 bg-gradient-to-r from-green-300 to-blue-300 bg-clip-text text-transparent">🤖 AI营养识别</div>
+              <div className="text-sm opacity-90 font-medium">深度学习 · 精准识别 · 智能分析</div>
             </div>
-            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/30 shadow-lg">
-              <Zap size={20} className="text-white animate-pulse" />
+            <div className="relative w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-xl">
+              <Brain size={20} className="text-green-400 animate-pulse" />
+              <div className="absolute inset-0 rounded-full bg-green-400 animate-ping opacity-20"></div>
             </div>
           </div>
         </div>
         
-        {/* 主拍照区域 - 增强版 */}
-        <div className="h-full bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center relative overflow-hidden">
-          {/* 背景装饰效果 */}
+        {/* 主拍照区域 - 超美化版 */}
+        <div className="h-full flex items-center justify-center relative overflow-hidden">
+          {/* 动态背景光效 */}
           <div className="absolute inset-0">
-            <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-green-500/10 rounded-full blur-3xl animate-pulse"></div>
-            <div className="absolute bottom-1/3 right-1/4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl animate-pulse delay-1000"></div>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-green-500/5 to-blue-500/5 rounded-full blur-3xl animate-pulse delay-500"></div>
+            <div className="absolute top-1/4 left-1/4 w-40 h-40 bg-gradient-to-r from-emerald-500/20 to-green-500/20 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute bottom-1/3 right-1/4 w-32 h-32 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-green-500/10 via-blue-500/10 to-purple-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+            {/* 额外的光晕效果 */}
+            <div className="absolute top-20 right-20 w-20 h-20 bg-green-400/30 rounded-full blur-2xl animate-pulse delay-200"></div>
+            <div className="absolute bottom-20 left-20 w-16 h-16 bg-blue-400/30 rounded-full blur-2xl animate-pulse delay-700"></div>
           </div>
           
-          {/* 拍照框架 - 科技感设计 */}
+          {/* 拍照框架 - 未来科技感设计 */}
           <div className="relative z-10">
             <div className="w-80 h-80 relative">
               {/* 主框架 */}
-              <div className="w-full h-full border-2 border-dashed border-green-400/80 rounded-3xl relative overflow-hidden backdrop-blur-sm bg-white/5">
-                {/* 四个角落的装饰 */}
-                <div className="absolute top-4 left-4 w-6 h-6 border-l-2 border-t-2 border-green-400 rounded-tl-lg"></div>
-                <div className="absolute top-4 right-4 w-6 h-6 border-r-2 border-t-2 border-green-400 rounded-tr-lg"></div>
-                <div className="absolute bottom-4 left-4 w-6 h-6 border-l-2 border-b-2 border-green-400 rounded-bl-lg"></div>
-                <div className="absolute bottom-4 right-4 w-6 h-6 border-r-2 border-b-2 border-green-400 rounded-br-lg"></div>
+              <div className="w-full h-full border-2 border-dashed border-emerald-400/90 rounded-3xl relative overflow-hidden backdrop-blur-md bg-gradient-to-br from-white/10 to-white/5 shadow-2xl">
+                {/* 科技感角落装饰 */}
+                <div className="absolute top-3 left-3 w-8 h-8 border-l-3 border-t-3 border-emerald-400 rounded-tl-xl shadow-lg"></div>
+                <div className="absolute top-3 right-3 w-8 h-8 border-r-3 border-t-3 border-emerald-400 rounded-tr-xl shadow-lg"></div>
+                <div className="absolute bottom-3 left-3 w-8 h-8 border-l-3 border-b-3 border-emerald-400 rounded-bl-xl shadow-lg"></div>
+                <div className="absolute bottom-3 right-3 w-8 h-8 border-r-3 border-b-3 border-emerald-400 rounded-br-xl shadow-lg"></div>
+                
+                {/* 内部十字线 */}
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4">
+                  <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-emerald-400/60 transform -translate-y-1/2"></div>
+                  <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-emerald-400/60 transform -translate-x-1/2"></div>
+                </div>
                 
                 {/* 中心内容 */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center text-white">
-                    <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl animate-bounce">
-                      <Camera size={32} className="text-white" />
-                    </div>
-                    <div className="text-xl font-bold mb-2 drop-shadow-lg">将美食放在框内</div>
-                    <div className="text-sm opacity-80 font-medium mb-4">AI将自动识别食物种类和营养成分</div>
-                    
-                    {/* 提示标签 */}
-                    <div className="flex justify-center space-x-3 mt-6">
-                      <div className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full border border-white/30">
-                        <span className="text-xs text-white font-medium">💡 光线充足</span>
+                    <div className="relative w-20 h-20 mx-auto mb-6">
+                      <div className="absolute inset-0 bg-gradient-to-br from-emerald-400 via-green-500 to-blue-500 rounded-full shadow-2xl animate-pulse"></div>
+                      <div className="absolute inset-2 bg-gradient-to-br from-emerald-300 to-blue-400 rounded-full flex items-center justify-center">
+                        <Eye size={32} className="text-white animate-bounce" />
                       </div>
-                      <div className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full border border-white/30">
-                        <span className="text-xs text-white font-medium">🎯 角度清晰</span>
+                      {/* 环绕光点 */}
+                      {[...Array(6)].map((_, i) => (
+                        <div
+                          key={i}
+                          className="absolute w-2 h-2 bg-emerald-400 rounded-full"
+                          style={{
+                            top: '50%',
+                            left: '50%',
+                            transform: `translate(-50%, -50%) rotate(${i * 60}deg) translateY(-32px)`,
+                            animation: `spin 4s linear infinite`,
+                            animationDelay: `${i * 0.2}s`
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <div className="text-xl font-bold mb-2 drop-shadow-lg bg-gradient-to-r from-emerald-300 to-blue-300 bg-clip-text text-transparent">将美食放在框内</div>
+                    <div className="text-sm opacity-90 font-medium mb-4">AI智能识别 · 营养精准分析</div>
+                    
+                    {/* 美化提示标签 */}
+                    <div className="flex justify-center space-x-2 mt-6">
+                      <div className="bg-gradient-to-r from-emerald-500/20 to-green-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full border border-emerald-400/40 shadow-lg">
+                        <span className="text-xs text-emerald-300 font-semibold flex items-center">
+                          <div className="w-2 h-2 bg-emerald-400 rounded-full mr-1.5 animate-pulse"></div>
+                          光线充足
+                        </span>
+                      </div>
+                      <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full border border-blue-400/40 shadow-lg">
+                        <span className="text-xs text-blue-300 font-semibold flex items-center">
+                          <div className="w-2 h-2 bg-blue-400 rounded-full mr-1.5 animate-pulse delay-300"></div>
+                          角度清晰
+                        </span>
                       </div>
                     </div>
                   </div>
                 </div>
                 
-                {/* 扫描线动画 */}
+                {/* 动态扫描线 */}
                 <div className="absolute inset-0 overflow-hidden">
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-green-400 to-transparent animate-pulse"></div>
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-pulse"></div>
                   <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent animate-pulse delay-500"></div>
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-emerald-400 to-transparent animate-pulse delay-250"></div>
+                  <div className="absolute right-0 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-blue-400 to-transparent animate-pulse delay-750"></div>
                 </div>
               </div>
               
-              {/* 外围装饰环 */}
-              <div className="absolute -inset-4 border border-green-400/30 rounded-3xl animate-pulse"></div>
-              <div className="absolute -inset-8 border border-blue-400/20 rounded-3xl animate-pulse delay-1000"></div>
+              {/* 多层外围装饰环 */}
+              <div className="absolute -inset-4 border border-emerald-400/40 rounded-3xl animate-pulse shadow-lg"></div>
+              <div className="absolute -inset-8 border border-blue-400/30 rounded-3xl animate-pulse delay-1000 shadow-lg"></div>
+              <div className="absolute -inset-12 border border-purple-400/20 rounded-3xl animate-pulse delay-2000 shadow-xl"></div>
             </div>
           </div>
         </div>
         
-        {/* 底部拍照按钮区域 - 美化版 */}
-        <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/60 to-transparent">
-          <div className="flex justify-center items-center p-8 pb-12">
+        {/* 底部拍照按钮区域 - 超美化版 */}
+        <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+          <div className="flex justify-center items-center px-8 pt-8 pb-6">
             {/* 拍照按钮 */}
             <div className="relative">
               <button 
@@ -1855,37 +1892,47 @@ const App: React.FC = () => {
                   // 启动AI分析流程
                   startAIAnalysis();
                 }}
-                className="w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center text-white border-4 border-white shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 relative z-10"
+                className="w-24 h-24 bg-gradient-to-br from-emerald-400 via-green-500 to-blue-600 rounded-full flex items-center justify-center text-white border-4 border-white shadow-2xl hover:scale-110 active:scale-95 transition-all duration-500 relative z-10 transform hover:rotate-12 active:rotate-0"
               >
-                <Camera size={32} />
+                <Camera size={36} className="drop-shadow-lg" />
               </button>
               
-              {/* 外围动画环 */}
-              <div className="absolute inset-0 w-20 h-20 border-2 border-green-400/50 rounded-full animate-ping"></div>
-              <div className="absolute -inset-2 w-24 h-24 border border-green-400/30 rounded-full animate-pulse"></div>
+              {/* 多层外围动画环 */}
+              <div className="absolute inset-0 w-24 h-24 border-2 border-emerald-400/60 rounded-full animate-ping"></div>
+              <div className="absolute -inset-2 w-28 h-28 border border-green-400/40 rounded-full animate-pulse"></div>
+              <div className="absolute -inset-4 w-32 h-32 border border-blue-400/30 rounded-full animate-pulse delay-500"></div>
               
-              {/* 拍照提示 */}
-              <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center">
-                <div className="text-white text-sm font-medium bg-black/40 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20">
-                  轻触拍照 📸
-                </div>
-              </div>
+              {/* 环绕光点 */}
+              {[...Array(8)].map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute w-3 h-3 bg-emerald-400 rounded-full opacity-80"
+                  style={{
+                    top: '50%',
+                    left: '50%',
+                    transform: `translate(-50%, -50%) rotate(${i * 45}deg) translateY(-40px)`,
+                    animation: `spin 6s linear infinite`,
+                    animationDelay: `${i * 0.2}s`
+                  }}
+                />
+              ))}
+              
             </div>
           </div>
           
-          {/* 功能提示栏 */}
-          <div className="flex justify-center space-x-6 pb-6">
-            <div className="flex items-center space-x-2 text-white/80">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span className="text-xs font-medium">AI实时识别</span>
+          {/* 功能提示栏 - 美化版 */}
+          <div className="flex justify-center space-x-3 pt-8 pb-6">
+            <div className="flex items-center space-x-2 text-white/90 bg-gradient-to-r from-emerald-500/20 to-green-500/20 backdrop-blur-sm px-4 py-2 rounded-full border border-emerald-400/30">
+              <div className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-pulse shadow-lg"></div>
+              <span className="text-sm font-semibold">AI实时识别</span>
             </div>
-            <div className="flex items-center space-x-2 text-white/80">
-              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse delay-300"></div>
-              <span className="text-xs font-medium">营养精准分析</span>
+            <div className="flex items-center space-x-2 text-white/90 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 backdrop-blur-sm px-4 py-2 rounded-full border border-blue-400/30">
+              <div className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-pulse delay-300 shadow-lg"></div>
+              <span className="text-sm font-semibold">营养分析</span>
             </div>
-            <div className="flex items-center space-x-2 text-white/80">
-              <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse delay-600"></div>
-              <span className="text-xs font-medium">健康建议推荐</span>
+            <div className="flex items-center space-x-2 text-white/90 bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-sm px-4 py-2 rounded-full border border-purple-400/30">
+              <div className="w-2.5 h-2.5 bg-purple-400 rounded-full animate-pulse delay-600 shadow-lg"></div>
+              <span className="text-sm font-semibold">智能推荐</span>
             </div>
           </div>
         </div>
@@ -1893,77 +1940,156 @@ const App: React.FC = () => {
     </div>
   );
 
-  // AI分析流程组件 - 美化版
+  // AI分析流程组件 - 超美化版
   const AIAnalysisModal = () => {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div className="bg-white rounded-3xl w-full max-w-md max-h-[85vh] overflow-hidden shadow-2xl transform transition-all duration-500 ease-out animate-in slide-in-from-bottom-4">
-          {/* 头部 - 美化版 */}
-          <div className="bg-gradient-to-br from-emerald-500 via-blue-500 to-purple-600 text-white p-8 text-center relative overflow-hidden">
-            {/* 背景装饰 */}
-            <div className="absolute inset-0 bg-white bg-opacity-10">
-              <div className="absolute top-0 left-0 w-32 h-32 bg-white bg-opacity-20 rounded-full -translate-x-16 -translate-y-16 animate-pulse"></div>
-              <div className="absolute bottom-0 right-0 w-24 h-24 bg-white bg-opacity-15 rounded-full translate-x-12 translate-y-12 animate-pulse delay-1000"></div>
+      <div className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        {/* 背景粒子效果 */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {[...Array(25)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-2 h-2 bg-white opacity-10 rounded-full animate-pulse"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 3}s`,
+                animationDuration: `${2 + Math.random() * 3}s`
+              }}
+            />
+          ))}
+          {/* 漂浮的AI图标 */}
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={`icon-${i}`}
+              className="absolute opacity-5 text-white"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animation: `float ${4 + Math.random() * 2}s ease-in-out infinite`,
+                animationDelay: `${Math.random() * 2}s`
+              }}
+            >
+              {i % 4 === 0 ? <Brain size={24} /> : 
+               i % 4 === 1 ? <Eye size={20} /> :
+               i % 4 === 2 ? <Cpu size={18} /> : <Wand2 size={22} />}
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] overflow-hidden shadow-2xl transform transition-all duration-700 ease-out animate-in slide-in-from-bottom-4 backdrop-blur-md border border-white/20">
+          {/* 头部 - 超美化版 */}
+          <div className="bg-gradient-to-br from-violet-500 via-purple-500 to-pink-500 text-white p-8 text-center relative overflow-hidden">
+            {/* 动态背景波纹 */}
+            <div className="absolute inset-0">
+              <div className="absolute -top-4 -left-4 w-32 h-32 bg-white/10 rounded-full animate-ping"></div>
+              <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-white/15 rounded-full animate-ping" style={{ animationDelay: '1s' }}></div>
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-gradient-to-r from-transparent to-white/5 rounded-full animate-spin" style={{ animationDuration: '20s' }}></div>
+              {/* 流动的光效 */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-pulse"></div>
             </div>
             
             <div className="relative z-10">
-              <div className="w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border border-white border-opacity-30 shadow-lg">
-                <div className="animate-spin">
-                  <Zap size={36} className="text-white drop-shadow-lg" />
+              {/* AI图标 - 增强动画 */}
+              <div className="relative w-24 h-24 mx-auto mb-4">
+                <div className="absolute inset-0 bg-white/20 rounded-full backdrop-blur-sm border border-white/30 shadow-lg animate-pulse"></div>
+                <div className="absolute inset-2 bg-gradient-to-br from-white/30 to-white/10 rounded-full flex items-center justify-center">
+                  <div className="animate-spin" style={{ animationDuration: '3s' }}>
+                    <Brain size={32} className="text-white drop-shadow-lg" />
+                  </div>
+                </div>
+                {/* 环绕粒子 */}
+                {[...Array(8)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute w-2 h-2 bg-white rounded-full opacity-70"
+                    style={{
+                      top: '50%',
+                      left: '50%',
+                      transform: `translate(-50%, -50%) rotate(${i * 45}deg) translateY(-24px)`,
+                      animation: `spin 4s linear infinite`,
+                      animationDelay: `${i * 0.2}s`
+                    }}
+                  />
+                ))}
+              </div>
+              
+              <h2 className="text-2xl font-bold mb-2 drop-shadow-sm bg-clip-text text-transparent bg-gradient-to-r from-white to-purple-100">🤖 AI智能识别</h2>
+              <p className="text-sm opacity-90 font-medium">深度学习算法正在分析您的美食...</p>
+              
+              {/* 动态进度条 */}
+              <div className="mt-6 w-full bg-white/20 rounded-full h-3 overflow-hidden backdrop-blur-sm border border-white/30">
+                <div 
+                  className="h-3 rounded-full bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 transition-all duration-1000 ease-out shadow-lg relative overflow-hidden"
+                  style={{ width: `${Math.min(((currentAnalysisStep + 1) / aiAnalysisSteps.length) * 100, 100)}%` }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                  {/* 流光效果 */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent w-8 animate-pulse" style={{ animation: 'shimmer 2s infinite' }}></div>
                 </div>
               </div>
-              <h2 className="text-2xl font-bold mb-2 drop-shadow-sm">AI智能分析</h2>
-              <p className="text-sm opacity-90 font-medium">正在识别您的美食，分析营养成分...</p>
-              
-              {/* 进度条 */}
-              <div className="mt-4 w-full bg-white bg-opacity-20 rounded-full h-2 overflow-hidden">
-                <div 
-                  className="bg-white h-2 rounded-full transition-all duration-1000 ease-out shadow-sm"
-                  style={{ width: `${Math.min(((currentAnalysisStep + 1) / aiAnalysisSteps.length) * 100, 100)}%` }}
-                ></div>
-              </div>
-              <div className="text-xs opacity-80 mt-2">
-                {currentAnalysisStep >= 0 && currentAnalysisStep < aiAnalysisSteps.length 
-                  ? `步骤 ${currentAnalysisStep + 1} / ${aiAnalysisSteps.length}` 
-                  : '分析完成'}
+              <div className="text-xs opacity-80 mt-3 flex items-center justify-center space-x-2">
+                <Sparkles size={12} className="animate-pulse" />
+                <span>
+                  {currentAnalysisStep >= 0 && currentAnalysisStep < aiAnalysisSteps.length 
+                    ? `正在执行步骤 ${currentAnalysisStep + 1} / ${aiAnalysisSteps.length}` 
+                    : '分析完成 ✨'}
+                </span>
+                <Sparkles size={12} className="animate-pulse" />
               </div>
             </div>
           </div>
 
-          {/* 分析步骤 - 美化版 */}
-          <div 
-            ref={analysisStepsRef}
-            className="p-6 space-y-4 max-h-96 overflow-y-auto bg-gradient-to-b from-gray-50 to-white"
-          >
+          {/* 分析步骤 - 超美化版，移除滚动控制 */}
+          <div className="p-6 space-y-3 max-h-96 overflow-y-auto bg-gradient-to-b from-slate-50 via-white to-purple-50/30 scrollbar-hide">
             {aiAnalysisSteps.map((step, index) => (
-              <div key={index} className={`flex items-start space-x-4 p-4 rounded-xl transition-all duration-500 transform ${
-                step.status === 'completed' ? 'bg-green-50 border border-green-200 shadow-sm scale-100' :
-                step.status === 'processing' ? 'bg-blue-50 border border-blue-200 shadow-md scale-105' :
-                'bg-gray-50 border border-gray-200 scale-95 opacity-60'
-              }`}>
-                {/* 状态图标 - 增强版 */}
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg transform transition-all duration-300 ${
-                  step.status === 'completed' ? 'bg-gradient-to-br from-green-400 to-green-600 text-white' :
-                  step.status === 'processing' ? 'bg-gradient-to-br from-blue-400 to-blue-600 text-white animate-pulse' :
-                  'bg-gradient-to-br from-gray-300 to-gray-400 text-gray-500'
+              <div 
+                key={index} 
+                className={`relative flex items-start space-x-4 p-4 rounded-2xl transition-all duration-700 transform ${
+                  step.status === 'completed' ? 'bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 shadow-lg scale-100 translate-y-0' :
+                  step.status === 'processing' ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 shadow-xl scale-105 -translate-y-1' :
+                  'bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 scale-95 opacity-70'
+                }`}
+                style={{
+                  animationDelay: `${index * 100}ms`
+                }}
+              >
+                {/* 背景光效 */}
+                {step.status === 'processing' && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-200/20 to-purple-200/20 rounded-2xl animate-pulse"></div>
+                )}
+                
+                {/* 状态图标 - 超增强版 */}
+                <div className={`relative w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg transform transition-all duration-500 ${
+                  step.status === 'completed' ? 'bg-gradient-to-br from-emerald-400 via-green-500 to-teal-600 text-white shadow-emerald-200' :
+                  step.status === 'processing' ? 'bg-gradient-to-br from-blue-400 via-indigo-500 to-purple-600 text-white shadow-blue-200 animate-pulse' :
+                  'bg-gradient-to-br from-gray-300 to-slate-400 text-gray-500 shadow-gray-200'
                 }`}>
                   {step.status === 'completed' ? (
-                    <Check size={16} className="animate-bounce" />
+                    <>
+                      <Check size={20} className="animate-bounce" />
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-400 to-green-500 animate-ping opacity-20"></div>
+                    </>
                   ) : step.status === 'processing' ? (
-                    <div className="flex space-x-1">
-                      <div className="w-1 h-1 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                      <div className="w-1 h-1 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                      <div className="w-1 h-1 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                    </div>
+                    <>
+                      <div className="flex space-x-1">
+                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                      </div>
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 animate-ping opacity-30"></div>
+                      {/* 添加旋转环效果 */}
+                      <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-white/50 animate-spin"></div>
+                    </>
                   ) : (
-                    <div className="w-3 h-3 bg-gray-500 rounded-full opacity-50" />
+                    <div className="w-4 h-4 bg-gray-500 rounded-full opacity-50" />
                   )}
                 </div>
 
-                {/* 内容 - 增强版 */}
-                <div className="flex-1">
-                  <div className={`font-semibold text-base mb-1 transition-colors duration-300 ${
-                    step.status === 'completed' ? 'text-green-700' :
+                {/* 内容 - 超增强版 */}
+                <div className="flex-1 relative">
+                  <div className={`font-bold text-lg mb-1 transition-all duration-500 ${
+                    step.status === 'completed' ? 'text-emerald-700' :
                     step.status === 'processing' ? 'text-blue-700' :
                     'text-gray-400'
                   }`}>
@@ -1971,15 +2097,17 @@ const App: React.FC = () => {
                   </div>
                   
                   {step.status === 'completed' && step.content.includes('\n') && (
-                    <div className="mt-3 text-sm text-gray-700 bg-white p-3 rounded-lg border border-gray-200 shadow-sm animate-in slide-in-from-top-2 duration-300">
-                      {step.content.split('\n').slice(1).join('\n')}
+                    <div className="mt-3 p-4 text-sm text-gray-700 bg-gradient-to-r from-white to-gray-50 rounded-xl border border-gray-100 shadow-sm transform transition-all duration-500 animate-in slide-in-from-top-2">
+                      <div className="whitespace-pre-line leading-relaxed">
+                        {step.content.split('\n').slice(1).join('\n')}
+                      </div>
                     </div>
                   )}
                   
                   {step.timestamp && (
-                    <div className="text-xs text-gray-500 mt-2 flex items-center">
+                    <div className="text-xs text-gray-500 mt-3 flex items-center opacity-70">
                       <Clock size={12} className="mr-1" />
-                      {step.timestamp}
+                      <span className="font-medium">{step.timestamp}</span>
                     </div>
                   )}
                 </div>
@@ -1987,66 +2115,109 @@ const App: React.FC = () => {
             ))}
           </div>
 
-          {/* 自动关闭倒计时提示 */}
+          {/* 自动关闭倒计时提示 - 美化版 */}
           {autoCloseCountdown !== null && (
-            <div className="p-4 bg-blue-50 border-t border-blue-100 text-center">
-              <div className="flex items-center justify-center space-x-2 text-blue-700">
-                <Clock size={16} />
-                <span className="text-sm">
-                  分析完成！将在 <span className="font-bold text-blue-800">{autoCloseCountdown}</span> 秒后自动跳转到详细报告
+            <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-blue-100 text-center">
+              <div className="flex items-center justify-center space-x-3 text-blue-700 mb-4">
+                <div className="relative">
+                  <Clock size={20} className="animate-pulse" />
+                  <div className="absolute inset-0 rounded-full bg-blue-400 animate-ping opacity-20"></div>
+                </div>
+                <span className="text-sm font-medium">
+                  分析完成！将在 <span className="font-bold text-blue-800 text-lg">{autoCloseCountdown}</span> 秒后自动跳转
                 </span>
               </div>
               <button
                 onClick={() => {
                   setAutoCloseCountdown(null);
                 }}
-                className="mt-2 px-4 py-2 text-xs bg-blue-200 hover:bg-blue-300 text-blue-800 rounded-lg transition-colors"
+                className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-2 rounded-xl font-bold text-sm hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
               >
                 取消自动跳转
               </button>
             </div>
           )}
 
-          {/* 分析完成后的操作按钮 - 美化版 */}
+          {/* 分析完成后的操作按钮 - 超美化版 */}
           {currentAnalysisStep >= 6 && analysisResults && (
-            <div className="p-6 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-              {/* 营养评分展示 */}
-              <div className="text-center mb-6 p-4 bg-white rounded-2xl shadow-sm border border-gray-100">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-full mb-3 shadow-lg">
-                  <Star size={24} className="text-white" />
+            <div className="p-6 border-t border-purple-100 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 relative overflow-hidden">
+              {/* 背景装饰 */}
+              <div className="absolute inset-0 opacity-30">
+                <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-200 to-pink-200 rounded-full animate-pulse"></div>
+                <div className="absolute bottom-0 left-0 w-16 h-16 bg-gradient-to-br from-blue-200 to-indigo-200 rounded-full animate-pulse delay-1000"></div>
+              </div>
+              
+              {/* 营养评分展示 - 增强版 */}
+              <div className="relative text-center mb-6 p-6 bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-lg border border-gray-100 transform transition-all duration-500 hover:scale-105">
+                <div className="relative inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-emerald-400 via-green-500 to-teal-600 rounded-full mb-4 shadow-xl">
+                  <Star size={28} className="text-white animate-pulse" />
+                  {/* 环绕光环 */}
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-400 to-green-500 animate-ping opacity-20"></div>
+                  <div className="absolute -inset-2 rounded-full border-2 border-emerald-300 opacity-50 animate-spin" style={{ animationDuration: '3s' }}></div>
                 </div>
-                <div className="text-3xl font-bold text-green-600 mb-1">
+                <div className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent mb-2">
                   {analysisResults.nutritionScore}分
                 </div>
-                <div className="text-sm text-gray-600 font-medium">营养健康评分</div>
-                <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                <div className="text-sm text-gray-600 font-semibold mb-3">🌟 营养健康评分 🌟</div>
+                
+                {/* 动态进度条 */}
+                <div className="relative w-full bg-gradient-to-r from-gray-200 to-gray-300 rounded-full h-3 overflow-hidden shadow-inner">
                   <div 
-                    className="bg-gradient-to-r from-green-400 to-green-600 h-2 rounded-full transition-all duration-1000 ease-out"
+                    className="h-3 rounded-full bg-gradient-to-r from-emerald-400 via-green-500 to-teal-500 transition-all duration-2000 ease-out relative overflow-hidden shadow-lg"
                     style={{ width: `${analysisResults.nutritionScore}%` }}
-                  ></div>
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-pulse"></div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/60 to-transparent w-6" style={{ animation: 'shimmer 2s infinite' }}></div>
+                  </div>
+                </div>
+                
+                {/* 评分文字 */}
+                <div className="mt-3 text-xs font-medium text-gray-500">
+                  {analysisResults.nutritionScore >= 90 ? '🏆 优秀' :
+                   analysisResults.nutritionScore >= 80 ? '🥇 良好' :
+                   analysisResults.nutritionScore >= 70 ? '🥈 合格' : '🥉 需改善'}
                 </div>
               </div>
               
-              {/* 操作按钮 */}
-              <div className="flex space-x-3">
+              {/* 操作按钮 - 超美化版 */}
+              <div className="relative flex space-x-4">
                 <button
                   onClick={() => {
                     setShowAIAnalysis(false);
                     setShowMealSelection(true);
                   }}
-                  className="flex-1 py-4 px-4 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-2xl font-semibold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95"
+                  className="flex-1 relative py-4 px-4 bg-gradient-to-br from-slate-100 via-gray-100 to-slate-200 text-gray-700 rounded-2xl font-bold hover:from-slate-200 hover:via-gray-200 hover:to-slate-300 transition-all duration-500 shadow-lg hover:shadow-xl transform hover:scale-105 hover:-translate-y-1 active:scale-95 active:translate-y-0 border border-gray-200 overflow-hidden group"
                 >
-                  🍽️ 修改餐次
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <div className="relative flex items-center justify-center space-x-2">
+                    <Utensils size={18} className="text-gray-600" />
+                    <span>修改餐次</span>
+                  </div>
                 </button>
+                
                 <button
                   onClick={() => {
                     setShowAIAnalysis(false);
                     setShowNutritionReport(true);
                   }}
-                  className="flex-1 py-4 px-4 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-2xl font-semibold hover:from-green-600 hover:to-blue-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+                  className="flex-1 relative py-4 px-4 bg-gradient-to-br from-emerald-500 via-green-600 to-blue-600 text-white rounded-2xl font-bold hover:from-emerald-600 hover:via-green-700 hover:to-blue-700 transition-all duration-500 shadow-lg hover:shadow-xl transform hover:scale-105 hover:-translate-y-1 active:scale-95 active:translate-y-0 overflow-hidden group"
                 >
-                  📊 查看详细报告
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-blue-600 animate-pulse opacity-50"></div>
+                  <div className="relative flex items-center justify-center space-x-2">
+                    <BarChart3 size={18} className="text-white" />
+                    <span>查看详细报告</span>
+                    <Sparkles size={14} className="text-white animate-pulse" />
+                  </div>
                 </button>
+              </div>
+              
+              {/* 额外的提示信息 */}
+              <div className="relative mt-4 text-center">
+                <div className="text-xs text-gray-500 bg-white/70 backdrop-blur-sm rounded-lg py-2 px-4 inline-block shadow-sm border border-gray-200">
+                  <Clock size={12} className="inline mr-1" />
+                  分析耗时: {((Date.now() - (analysisResults.timestamp || Date.now())) / 1000).toFixed(1)}秒
+                </div>
               </div>
             </div>
           )}
