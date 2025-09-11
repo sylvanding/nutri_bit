@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Camera, Home, BookOpen, Users, User, MessageCircle, TrendingUp, Target, Award, ShoppingCart, Heart, Star, Clock, Zap, Check, BarChart3, Plus, Utensils, Coffee, Sandwich, Apple, Droplets } from 'lucide-react';
+import { Camera, Home, BookOpen, Users, User, MessageCircle, TrendingUp, Target, Award, ShoppingCart, Heart, Star, Clock, Zap, Check, BarChart3, Plus, Utensils, Coffee, Sandwich, Apple, Droplets, Filter, Search, Tag, Sparkles, Crown, Shield } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import UltraSimpleGamificationPanel from './components/gamification/UltraSimpleGamificationPanel';
 import { useUltraSimpleGamificationStore } from './stores/ultraSimpleGamificationStore';
@@ -94,11 +94,86 @@ interface DailyNutritionTargets {
   fiber: number;
 }
 
+// 饮食计划相关数据结构
+interface DietPlan {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  coverImage: string;
+  duration: number; // 天数
+  price: number;
+  originalPrice?: number; // 原价，用于显示折扣
+  rating: number;
+  reviewCount: number;
+  tags: string[];
+  targetGroups: ('weight_loss' | 'muscle_gain' | 'diabetes' | 'pregnancy' | 'elderly' | 'athlete' | 'office_worker')[];
+  difficulty: 'easy' | 'medium' | 'hard';
+  features: string[];
+  nutritionFocus: string[];
+  dailyCaloriesRange: [number, number];
+  mealCount: number; // 每日餐数
+  includedServices: string[];
+  trainerInfo?: {
+    name: string;
+    avatar: string;
+    title: string;
+    experience: string;
+  };
+  sampleMeals: Array<{
+    day: number;
+    mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+    name: string;
+    image: string;
+    calories: number;
+  }>;
+  createdAt: string;
+  isPopular?: boolean;
+  isRecommended?: boolean;
+  purchaseCount: number;
+}
+
+interface DietPlanCategory {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  color: string;
+  targetGroup: string;
+}
+
+// 用户购买的营养计划
+interface UserNutritionPlan {
+  id: string;
+  plan: DietPlan;
+  purchaseDate: string;
+  startDate: string;
+  endDate: string;
+  currentDay: number;
+  totalDays: number;
+  status: 'active' | 'completed' | 'paused';
+  progress: number; // 0-100
+  todayRecommendation?: {
+    breakfast?: string;
+    lunch?: string;
+    dinner?: string;
+    snack?: string;
+  };
+  adherenceRate: number; // 遵循率 0-100
+  remainingDays: number;
+}
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [showCamera, setShowCamera] = useState(false);
   const [showNutritionReport, setShowNutritionReport] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
+  
+  // 商城相关状态
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDietPlan, setSelectedDietPlan] = useState<DietPlan | null>(null);
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [selectedKOLPost, setSelectedKOLPost] = useState<KOLPost | null>(null);
   
   // 游戏化系统
@@ -510,6 +585,54 @@ const App: React.FC = () => {
     return calculateMacronutrients(targetCalories, profile);
   };
 
+  // 商城相关辅助函数
+  // 根据用户档案推荐饮食计划
+  const getRecommendedPlans = (profile: HealthProfile | null): DietPlan[] => {
+    if (!profile) return dietPlans.filter(plan => plan.isRecommended).slice(0, 3);
+    
+    return dietPlans
+      .filter(plan => {
+        // 基于用户健康目标匹配
+        if (profile.healthGoal === 'weight_loss' && plan.targetGroups.includes('weight_loss')) return true;
+        if (profile.healthGoal === 'muscle_gain' && plan.targetGroups.includes('muscle_gain')) return true;
+        return plan.isRecommended;
+      })
+      .sort((a, b) => b.rating - a.rating)
+      .slice(0, 3);
+  };
+
+  // 筛选饮食计划
+  const getFilteredPlans = (): DietPlan[] => {
+    let filtered = dietPlans;
+
+    // 按分类筛选
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(plan => 
+        plan.targetGroups.some(group => group === selectedCategory)
+      );
+    }
+
+    // 按搜索关键词筛选
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(plan =>
+        plan.title.toLowerCase().includes(query) ||
+        plan.subtitle.toLowerCase().includes(query) ||
+        plan.description.toLowerCase().includes(query) ||
+        plan.tags.some(tag => tag.toLowerCase().includes(query))
+      );
+    }
+
+    return filtered.sort((a, b) => {
+      // 优先显示推荐和热门计划
+      if (a.isRecommended && !b.isRecommended) return -1;
+      if (!a.isRecommended && b.isRecommended) return 1;
+      if (a.isPopular && !b.isPopular) return -1;
+      if (!a.isPopular && b.isPopular) return 1;
+      return b.rating - a.rating;
+    });
+  };
+
   // 动态计算营养目标
   const nutritionTargets = healthProfile 
     ? calculateNutritionTargets(healthProfile)
@@ -626,6 +749,323 @@ const App: React.FC = () => {
       isFollowable: true
     }
   ];
+
+  // 饮食计划分类数据
+  const dietPlanCategories: DietPlanCategory[] = [
+    {
+      id: 'all',
+      name: '全部计划',
+      icon: '🏠',
+      description: '查看所有饮食计划',
+      color: 'bg-gray-100',
+      targetGroup: 'all'
+    },
+    {
+      id: 'weight_loss',
+      name: '减脂塑形',
+      icon: '🔥',
+      description: '科学减脂，健康瘦身',
+      color: 'bg-red-100',
+      targetGroup: 'weight_loss'
+    },
+    {
+      id: 'muscle_gain',
+      name: '增肌强体',
+      icon: '💪',
+      description: '增肌塑形，强健体魄',
+      color: 'bg-blue-100',
+      targetGroup: 'muscle_gain'
+    },
+    {
+      id: 'diabetes',
+      name: '控糖饮食',
+      icon: '🩺',
+      description: '糖尿病友好，血糖管理',
+      color: 'bg-green-100',
+      targetGroup: 'diabetes'
+    },
+    {
+      id: 'pregnancy',
+      name: '孕期营养',
+      icon: '🤱',
+      description: '孕期专属，营养均衡',
+      color: 'bg-pink-100',
+      targetGroup: 'pregnancy'
+    },
+    {
+      id: 'office_worker',
+      name: '白领养生',
+      icon: '💼',
+      description: '忙碌生活，简单营养',
+      color: 'bg-yellow-100',
+      targetGroup: 'office_worker'
+    }
+  ];
+
+  // 饮食计划数据
+  const dietPlans: DietPlan[] = [
+    {
+      id: 'plan-1',
+      title: '21天科学减脂计划',
+      subtitle: '营养师定制·轻松瘦身',
+      description: '专业营养师根据您的身体数据定制的21天减脂方案，科学搭配，营养均衡，让您在享受美食的同时轻松达到理想体重。',
+      coverImage: 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=600',
+      duration: 21,
+      price: 199,
+      originalPrice: 299,
+      rating: 4.9,
+      reviewCount: 1258,
+      tags: ['热门', '专业营养师', '科学减脂'],
+      targetGroups: ['weight_loss'],
+      difficulty: 'easy',
+      features: [
+        '专业营养师1对1指导',
+        '每日营养数据分析',
+        '21天完整食谱',
+        '运动搭配建议',
+        '微信群答疑服务'
+      ],
+      nutritionFocus: ['低热量', '高蛋白', '均衡营养'],
+      dailyCaloriesRange: [1200, 1500],
+      mealCount: 4,
+      includedServices: ['营养师咨询', '食谱定制', '进度跟踪'],
+      trainerInfo: {
+        name: '李营养师',
+        avatar: 'https://images.pexels.com/photos/5327921/pexels-photo-5327921.jpeg?auto=compress&cs=tinysrgb&w=100',
+        title: '国家二级营养师',
+        experience: '8年减脂指导经验'
+      },
+      sampleMeals: [
+        {
+          day: 1,
+          mealType: 'breakfast',
+          name: '燕麦酸奶杯',
+          image: 'https://images.pexels.com/photos/376464/pexels-photo-376464.jpeg?auto=compress&cs=tinysrgb&w=300',
+          calories: 320
+        },
+        {
+          day: 1,
+          mealType: 'lunch',
+          name: '鸡胸肉蔬菜沙拉',
+          image: 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=300',
+          calories: 450
+        }
+      ],
+      createdAt: '2024-01-15',
+      isPopular: true,
+      isRecommended: true,
+      purchaseCount: 1258
+    },
+    {
+      id: 'plan-2',
+      title: '增肌强体30天训练营',
+      subtitle: '健身教练·专业指导',
+      description: '专业健身教练设计的30天增肌计划，结合科学饮食和训练方案，帮助您快速增加肌肉量，打造理想身材。',
+      coverImage: 'https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg?auto=compress&cs=tinysrgb&w=600',
+      duration: 30,
+      price: 399,
+      originalPrice: 599,
+      rating: 4.8,
+      reviewCount: 856,
+      tags: ['专业教练', '增肌必选', '训练营'],
+      targetGroups: ['muscle_gain'],
+      difficulty: 'medium',
+      features: [
+        '专业健身教练指导',
+        '个性化训练计划',
+        '高蛋白饮食方案',
+        '每周体成分分析',
+        '24小时答疑服务'
+      ],
+      nutritionFocus: ['高蛋白', '复合碳水', '健康脂肪'],
+      dailyCaloriesRange: [2200, 2800],
+      mealCount: 5,
+      includedServices: ['教练指导', '训练计划', '营养搭配'],
+      trainerInfo: {
+        name: '张教练',
+        avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=100',
+        title: 'ACSM认证私人教练',
+        experience: '10年健身指导经验'
+      },
+      sampleMeals: [
+        {
+          day: 1,
+          mealType: 'breakfast',
+          name: '蛋白粉燕麦片',
+          image: 'https://images.pexels.com/photos/376464/pexels-photo-376464.jpeg?auto=compress&cs=tinysrgb&w=300',
+          calories: 520
+        }
+      ],
+      createdAt: '2024-01-10',
+      isPopular: true,
+      purchaseCount: 856
+    },
+    {
+      id: 'plan-3',
+      title: '糖尿病友好饮食方案',
+      subtitle: '控糖专家·血糖管理',
+      description: '专为糖尿病患者设计的28天控糖饮食方案，严格控制血糖指数，营养均衡，让您在享受美食的同时有效管理血糖。',
+      coverImage: 'https://images.pexels.com/photos/1640771/pexels-photo-1640771.jpeg?auto=compress&cs=tinysrgb&w=600',
+      duration: 28,
+      price: 299,
+      rating: 4.9,
+      reviewCount: 642,
+      tags: ['医学认证', '控糖专业', '血糖友好'],
+      targetGroups: ['diabetes'],
+      difficulty: 'easy',
+      features: [
+        '内分泌专家审核',
+        '低GI食材搭配',
+        '血糖监测建议',
+        '28天完整方案',
+        '专业医师答疑'
+      ],
+      nutritionFocus: ['低GI', '高纤维', '稳定血糖'],
+      dailyCaloriesRange: [1500, 1800],
+      mealCount: 4,
+      includedServices: ['专家咨询', '血糖管理', '饮食指导'],
+      trainerInfo: {
+        name: '王医师',
+        avatar: 'https://images.pexels.com/photos/5327921/pexels-photo-5327921.jpeg?auto=compress&cs=tinysrgb&w=100',
+        title: '内分泌科主任医师',
+        experience: '15年糖尿病管理经验'
+      },
+      sampleMeals: [
+        {
+          day: 1,
+          mealType: 'breakfast',
+          name: '全麦面包配牛油果',
+          image: 'https://images.pexels.com/photos/376464/pexels-photo-376464.jpeg?auto=compress&cs=tinysrgb&w=300',
+          calories: 280
+        }
+      ],
+      createdAt: '2024-01-08',
+      isRecommended: true,
+      purchaseCount: 642
+    },
+    {
+      id: 'plan-4',
+      title: '孕期营养全程指导',
+      subtitle: '孕期专家·母婴健康',
+      description: '专为孕期妈妈设计的营养方案，分期指导，确保母婴健康，科学补充孕期所需营养素。',
+      coverImage: 'https://images.pexels.com/photos/1640770/pexels-photo-1640770.jpeg?auto=compress&cs=tinysrgb&w=600',
+      duration: 90,
+      price: 599,
+      originalPrice: 899,
+      rating: 4.9,
+      reviewCount: 423,
+      tags: ['孕期专属', '分期指导', '母婴健康'],
+      targetGroups: ['pregnancy'],
+      difficulty: 'easy',
+      features: [
+        '妇产科医生指导',
+        '孕期分阶段方案',
+        '叶酸DHA补充建议',
+        '孕期禁忌食物提醒',
+        '24小时专家答疑'
+      ],
+      nutritionFocus: ['叶酸', 'DHA', '铁质补充'],
+      dailyCaloriesRange: [1800, 2200],
+      mealCount: 5,
+      includedServices: ['医生指导', '分期方案', '营养监控'],
+      trainerInfo: {
+        name: '刘医师',
+        avatar: 'https://images.pexels.com/photos/5327921/pexels-photo-5327921.jpeg?auto=compress&cs=tinysrgb&w=100',
+        title: '妇产科主任医师',
+        experience: '20年孕期营养指导经验'
+      },
+      sampleMeals: [
+        {
+          day: 1,
+          mealType: 'breakfast',
+          name: '核桃燕麦粥',
+          image: 'https://images.pexels.com/photos/376464/pexels-photo-376464.jpeg?auto=compress&cs=tinysrgb&w=300',
+          calories: 380
+        }
+      ],
+      createdAt: '2024-01-05',
+      isPopular: true,
+      purchaseCount: 423
+    },
+    {
+      id: 'plan-5',
+      title: '白领快手营养餐',
+      subtitle: '忙碌生活·简单营养',
+      description: '专为忙碌白领设计的快手营养餐方案，15分钟搞定一餐，营养不打折扣。',
+      coverImage: 'https://images.pexels.com/photos/1640773/pexels-photo-1640773.jpeg?auto=compress&cs=tinysrgb&w=600',
+      duration: 14,
+      price: 129,
+      rating: 4.7,
+      reviewCount: 789,
+      tags: ['快手制作', '白领首选', '性价比高'],
+      targetGroups: ['office_worker'],
+      difficulty: 'easy',
+      features: [
+        '15分钟快手制作',
+        '办公室可操作',
+        '营养搭配科学',
+        '食材易采购',
+        '微信群交流'
+      ],
+      nutritionFocus: ['快速制作', '营养均衡', '方便实用'],
+      dailyCaloriesRange: [1600, 2000],
+      mealCount: 3,
+      includedServices: ['食谱提供', '制作视频', '营养分析'],
+      sampleMeals: [
+        {
+          day: 1,
+          mealType: 'lunch',
+          name: '微波炉蒸蛋羹',
+          image: 'https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg?auto=compress&cs=tinysrgb&w=300',
+          calories: 320
+        }
+      ],
+      createdAt: '2024-01-12',
+      purchaseCount: 789
+    }
+  ];
+
+  // 用户购买的营养计划数据 - 一次只能有一个活跃计划
+  const [userNutritionPlans, setUserNutritionPlans] = useState<UserNutritionPlan[]>([
+    {
+      id: 'user-plan-1',
+      plan: dietPlans[0], // 21天科学减脂计划
+      purchaseDate: '2024-12-01',
+      startDate: '2024-12-05',
+      endDate: '2024-12-25',
+      currentDay: 8,
+      totalDays: 21,
+      status: 'active',
+      progress: 38, // 8/21 * 100
+      todayRecommendation: {
+        breakfast: '燕麦酸奶杯 + 坚果',
+        lunch: '鸡胸肉蔬菜沙拉',
+        dinner: '清蒸鱼配蒸蛋',
+        snack: '苹果 + 无糖酸奶'
+      },
+      adherenceRate: 85,
+      remainingDays: 13
+    },
+    {
+      id: 'user-plan-2',
+      plan: dietPlans[1], // 30天增肌塑形计划
+      purchaseDate: '2024-11-15',
+      startDate: '2024-11-20',
+      endDate: '2024-12-19',
+      currentDay: 21,
+      totalDays: 30,
+      status: 'paused', // 设置为暂停状态，因为只能有一个活跃计划
+      progress: 70, // 21/30 * 100
+      todayRecommendation: {
+        breakfast: '蛋白粉燕麦粥',
+        lunch: '牛肉土豆',
+        dinner: '三文鱼牛油果',
+        snack: '香蕉坚果'
+      },
+      adherenceRate: 92,
+      remainingDays: 9
+    }
+  ]);
 
   // 菜谱数据
   const recipes: Recipe[] = [
@@ -2864,6 +3304,150 @@ const App: React.FC = () => {
           </div>
         </div>
 
+        {/* 我的营养计划 */}
+        {userNutritionPlans.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-gray-700">我的营养计划</h3>
+              <button 
+                onClick={() => setActiveTab('store')}
+                className="text-xs text-blue-600"
+              >
+                查看全部
+              </button>
+            </div>
+            <div className="space-y-3">
+              {/* 活跃计划 */}
+              {userNutritionPlans.filter(plan => plan.status === 'active').map(userPlan => (
+                <div key={userPlan.id} className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-2xl border border-blue-100">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-800 text-sm mb-1">{userPlan.plan.title}</h4>
+                      <div className="flex items-center space-x-3 text-xs text-gray-600">
+                        <span>第 {userPlan.currentDay}/{userPlan.totalDays} 天</span>
+                        <span>•</span>
+                        <span className="text-green-600">遵循率 {userPlan.adherenceRate}%</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-gray-500 mb-1">还剩</div>
+                      <div className="text-sm font-bold text-blue-600">{userPlan.remainingDays} 天</div>
+                    </div>
+                  </div>
+                  
+                  {/* 进度条 */}
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                      <span>计划进度</span>
+                      <span>{userPlan.progress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
+                        style={{ width: `${userPlan.progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* 今日推荐 */}
+                  {userPlan.todayRecommendation && (
+                    <div className="bg-white/60 rounded-lg p-3">
+                      <div className="flex items-center gap-1 mb-2">
+                        <Sparkles className="w-3 h-3 text-purple-500" />
+                        <span className="text-xs font-medium text-gray-700">今日推荐</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {userPlan.todayRecommendation.breakfast && (
+                          <div className="flex items-center gap-1">
+                            <Coffee className="w-3 h-3 text-orange-500" />
+                            <span className="text-gray-600">{userPlan.todayRecommendation.breakfast}</span>
+                          </div>
+                        )}
+                        {userPlan.todayRecommendation.lunch && (
+                          <div className="flex items-center gap-1">
+                            <Utensils className="w-3 h-3 text-green-500" />
+                            <span className="text-gray-600">{userPlan.todayRecommendation.lunch}</span>
+                          </div>
+                        )}
+                        {userPlan.todayRecommendation.dinner && (
+                          <div className="flex items-center gap-1">
+                            <Sandwich className="w-3 h-3 text-blue-500" />
+                            <span className="text-gray-600">{userPlan.todayRecommendation.dinner}</span>
+                          </div>
+                        )}
+                        {userPlan.todayRecommendation.snack && (
+                          <div className="flex items-center gap-1">
+                            <Apple className="w-3 h-3 text-red-500" />
+                            <span className="text-gray-600">{userPlan.todayRecommendation.snack}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+              
+              {/* 暂停的计划 */}
+              {userNutritionPlans.filter(plan => plan.status === 'paused').map(userPlan => (
+                <div key={userPlan.id} className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 rounded-2xl border border-gray-200">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-medium text-gray-600 text-sm">{userPlan.plan.title}</h4>
+                        <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">已暂停</span>
+                      </div>
+                      <div className="flex items-center space-x-3 text-xs text-gray-500">
+                        <span>已进行 {userPlan.currentDay}/{userPlan.totalDays} 天</span>
+                        <span>•</span>
+                        <span>遵循率 {userPlan.adherenceRate}%</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const activePlan = getActivePlan();
+                        if (activePlan) {
+                          const confirmed = window.confirm(
+                            `您当前正在进行"${activePlan.plan.title}"计划。\n\n恢复"${userPlan.plan.title}"将暂停当前计划，是否确认？`
+                          );
+                          if (!confirmed) return;
+                        }
+                        
+                        // 恢复选中的计划，暂停其他活跃计划
+                        const updatedPlans = userNutritionPlans.map(plan => {
+                          if (plan.id === userPlan.id) {
+                            return { ...plan, status: 'active' as const };
+                          } else if (plan.status === 'active') {
+                            return { ...plan, status: 'paused' as const };
+                          }
+                          return plan;
+                        });
+                        setUserNutritionPlans(updatedPlans);
+                      }}
+                      className="bg-blue-500 text-white px-3 py-1 rounded-lg text-xs font-medium hover:bg-blue-600 transition-colors"
+                    >
+                      恢复
+                    </button>
+                  </div>
+                  
+                  {/* 进度条 */}
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                      <span>计划进度</span>
+                      <span>{userPlan.progress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="h-2 rounded-full bg-gray-400 transition-all duration-300"
+                        style={{ width: `${userPlan.progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 今日目标进度概览 */}
         <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-2xl mb-6">
           <div className="flex items-center justify-between mb-3">
@@ -3468,6 +4052,252 @@ const App: React.FC = () => {
     </div>
   );
 
+  // 商城页面组件
+  const StoreView = () => {
+    const filteredPlans = getFilteredPlans();
+    const recommendedPlans = getRecommendedPlans(healthProfile);
+
+    return (
+      <div className="pb-20">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-6 rounded-b-3xl">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h1 className="text-2xl font-bold">营养商城</h1>
+              <p className="text-purple-100 text-sm">专业饮食计划，个性化健康方案</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="bg-white/20 backdrop-blur-sm rounded-full p-2">
+                <Crown className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+
+          {/* 搜索栏 */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              placeholder="搜索饮食计划..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-white/20 backdrop-blur-sm rounded-xl text-white placeholder-purple-200 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50"
+            />
+          </div>
+        </div>
+
+        <div className="p-6">
+          {/* 分类筛选 */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold">选择目标</h2>
+              <Filter className="w-5 h-5 text-gray-500" />
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {dietPlanCategories.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => setSelectedCategory(category.id)}
+                  className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                    selectedCategory === category.id
+                      ? 'bg-purple-500 text-white shadow-lg'
+                      : `${category.color} text-gray-700 hover:shadow-md`
+                  }`}
+                >
+                  <span className="mr-2">{category.icon}</span>
+                  {category.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 个性化推荐 */}
+          {recommendedPlans.length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center mb-4">
+                <Sparkles className="w-5 h-5 text-purple-500 mr-2" />
+                <h2 className="text-lg font-semibold">为您推荐</h2>
+              </div>
+              <div className="grid gap-4">
+                {recommendedPlans.map((plan) => (
+                  <div
+                    key={plan.id}
+                    className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-4 border border-purple-200"
+                  >
+                    <div className="flex gap-4">
+                      <img
+                        src={plan.coverImage}
+                        alt={plan.title}
+                        className="w-20 h-20 rounded-xl object-cover"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-gray-800">{plan.title}</h3>
+                          {plan.isRecommended && (
+                            <span className="bg-purple-500 text-white text-xs px-2 py-0.5 rounded-full">推荐</span>
+                          )}
+                        </div>
+                        <p className="text-sm text-purple-600 mb-2">{plan.subtitle}</p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center">
+                              <Star className="w-4 h-4 text-yellow-500 mr-1" />
+                              <span className="text-sm text-gray-600">{plan.rating}</span>
+                            </div>
+                            <div className="flex items-center">
+                              <Clock className="w-4 h-4 text-gray-400 mr-1" />
+                              <span className="text-sm text-gray-600">{plan.duration}天</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            {plan.originalPrice && (
+                              <span className="text-xs text-gray-400 line-through">¥{plan.originalPrice}</span>
+                            )}
+                            <div className="text-lg font-bold text-purple-600">¥{plan.price}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedDietPlan(plan);
+                        setShowPurchaseModal(true);
+                      }}
+                      className="w-full mt-3 bg-purple-500 text-white py-2 rounded-xl font-medium hover:bg-purple-600 transition-colors"
+                    >
+                      查看详情
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 所有计划 */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">
+                {selectedCategory === 'all' ? '全部计划' : dietPlanCategories.find(c => c.id === selectedCategory)?.name}
+                <span className="text-sm text-gray-500 ml-2">({filteredPlans.length})</span>
+              </h2>
+            </div>
+
+            <div className="grid gap-6">
+              {filteredPlans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100"
+                >
+                  <div className="relative">
+                    <img
+                      src={plan.coverImage}
+                      alt={plan.title}
+                      className="w-full h-48 object-cover"
+                    />
+                    <div className="absolute top-4 left-4 flex gap-2">
+                      {plan.isPopular && (
+                        <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">热门</span>
+                      )}
+                      {plan.isRecommended && (
+                        <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded-full">推荐</span>
+                      )}
+                    </div>
+                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-full p-2">
+                      <Heart className="w-5 h-5 text-gray-600" />
+                    </div>
+                  </div>
+
+                  <div className="p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-800">{plan.title}</h3>
+                        <p className="text-sm text-purple-600">{plan.subtitle}</p>
+                      </div>
+                      <div className="text-right">
+                        {plan.originalPrice && (
+                          <span className="text-sm text-gray-400 line-through">¥{plan.originalPrice}</span>
+                        )}
+                        <div className="text-xl font-bold text-purple-600">¥{plan.price}</div>
+                      </div>
+                    </div>
+
+                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">{plan.description}</p>
+
+                    <div className="flex items-center gap-4 mb-3 text-sm text-gray-500">
+                      <div className="flex items-center">
+                        <Star className="w-4 h-4 text-yellow-500 mr-1" />
+                        <span>{plan.rating}</span>
+                        <span className="ml-1">({plan.reviewCount})</span>
+                      </div>
+                      <div className="flex items-center">
+                        <Clock className="w-4 h-4 mr-1" />
+                        <span>{plan.duration}天</span>
+                      </div>
+                      <div className="flex items-center">
+                        <Users className="w-4 h-4 mr-1" />
+                        <span>{plan.purchaseCount}人已购买</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1 mb-4">
+                      {plan.tags.slice(0, 3).map((tag, index) => (
+                        <span
+                          key={index}
+                          className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+
+                    {plan.trainerInfo && (
+                      <div className="flex items-center gap-3 mb-4 p-3 bg-gray-50 rounded-xl">
+                        <img
+                          src={plan.trainerInfo.avatar}
+                          alt={plan.trainerInfo.name}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                        <div>
+                          <div className="font-medium text-sm">{plan.trainerInfo.name}</div>
+                          <div className="text-xs text-gray-500">{plan.trainerInfo.title}</div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setSelectedDietPlan(plan);
+                          setShowPurchaseModal(true);
+                        }}
+                        className="flex-1 bg-purple-500 text-white py-3 rounded-xl font-medium hover:bg-purple-600 transition-colors"
+                      >
+                        立即购买
+                      </button>
+                      <button className="px-4 py-3 border border-purple-500 text-purple-500 rounded-xl hover:bg-purple-50 transition-colors">
+                        <MessageCircle className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {filteredPlans.length === 0 && (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Search className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-700 mb-2">没有找到相关计划</h3>
+                <p className="text-gray-500 text-sm">试试调整搜索关键词或筛选条件</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const ProfileView = () => (
     <div className="pb-20 p-6">
       <div className="text-center mb-8">
@@ -3608,10 +4438,254 @@ const App: React.FC = () => {
     </div>
   );
 
+  // 购买模态框组件
+  // 营养计划管理函数
+  const getActivePlan = (): UserNutritionPlan | null => {
+    return userNutritionPlans.find(plan => plan.status === 'active') || null;
+  };
+
+  const switchToNewPlan = (newPlan: DietPlan) => {
+    const activePlan = getActivePlan();
+    
+    if (activePlan) {
+      // 如果有活跃计划，暂停当前计划并激活新计划
+      const updatedPlans = userNutritionPlans.map(plan => {
+        if (plan.status === 'active') {
+          return { ...plan, status: 'paused' as const };
+        }
+        return plan;
+      });
+      
+      // 添加新计划
+      const newUserPlan: UserNutritionPlan = {
+        id: `user-plan-${Date.now()}`,
+        plan: newPlan,
+        purchaseDate: new Date().toISOString().split('T')[0],
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date(Date.now() + newPlan.duration * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        currentDay: 1,
+        totalDays: newPlan.duration,
+        status: 'active',
+        progress: 0,
+        todayRecommendation: {
+          breakfast: '根据计划定制',
+          lunch: '根据计划定制',
+          dinner: '根据计划定制',
+          snack: '根据计划定制'
+        },
+        adherenceRate: 100,
+        remainingDays: newPlan.duration
+      };
+      
+      setUserNutritionPlans([...updatedPlans, newUserPlan]);
+      return activePlan;
+    } else {
+      // 如果没有活跃计划，直接添加新计划
+      const newUserPlan: UserNutritionPlan = {
+        id: `user-plan-${Date.now()}`,
+        plan: newPlan,
+        purchaseDate: new Date().toISOString().split('T')[0],
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date(Date.now() + newPlan.duration * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        currentDay: 1,
+        totalDays: newPlan.duration,
+        status: 'active',
+        progress: 0,
+        todayRecommendation: {
+          breakfast: '根据计划定制',
+          lunch: '根据计划定制',
+          dinner: '根据计划定制',
+          snack: '根据计划定制'
+        },
+        adherenceRate: 100,
+        remainingDays: newPlan.duration
+      };
+      
+      setUserNutritionPlans([...userNutritionPlans, newUserPlan]);
+      return null;
+    }
+  };
+
+  const PurchaseModal = ({ plan }: { plan: DietPlan }) => {
+    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'wechat' | 'alipay' | 'card'>('wechat');
+    const [agreedToTerms, setAgreedToTerms] = useState(false);
+
+    const handlePurchase = () => {
+      if (!agreedToTerms) {
+        alert('请先同意服务条款');
+        return;
+      }
+      
+      const activePlan = getActivePlan();
+      
+      // 如果已有活跃计划，需要用户确认是否替换
+      if (activePlan) {
+        const confirmed = window.confirm(
+          `您当前正在进行"${activePlan.plan.title}"计划（第${activePlan.currentDay}/${activePlan.totalDays}天）。\n\n选择新计划将暂停当前计划，是否确认切换到"${plan.title}"？`
+        );
+        
+        if (!confirmed) {
+          return;
+        }
+      }
+      
+      // 切换到新计划
+      const replacedPlan = switchToNewPlan(plan);
+      
+      // 显示购买成功信息
+      if (replacedPlan) {
+        alert(`恭喜！您已成功购买"${plan.title}"！\n\n原计划"${replacedPlan.plan.title}"已暂停，您可以稍后在"我的计划"中恢复。`);
+      } else {
+        alert(`恭喜！您已成功购买"${plan.title}"，请在"我的计划"中查看详情。`);
+      }
+      
+      setShowPurchaseModal(false);
+      setSelectedDietPlan(null);
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+        <div className="bg-white rounded-t-3xl w-full max-w-md max-h-[90vh] overflow-hidden">
+          <div className="sticky top-0 bg-white p-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">确认购买</h2>
+              <button
+                onClick={() => {
+                  setShowPurchaseModal(false);
+                  setSelectedDietPlan(null);
+                }}
+                className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <div className="p-4 overflow-y-auto">
+            {/* 计划信息 */}
+            <div className="flex gap-4 mb-6 p-4 bg-gray-50 rounded-xl">
+              <img
+                src={plan.coverImage}
+                alt={plan.title}
+                className="w-16 h-16 rounded-xl object-cover"
+              />
+              <div className="flex-1">
+                <h3 className="font-semibold">{plan.title}</h3>
+                <p className="text-sm text-gray-600">{plan.subtitle}</p>
+                <div className="flex items-center mt-1">
+                  <Clock className="w-4 h-4 text-gray-400 mr-1" />
+                  <span className="text-sm text-gray-600">{plan.duration}天</span>
+                </div>
+              </div>
+              <div className="text-right">
+                {plan.originalPrice && (
+                  <span className="text-sm text-gray-400 line-through">¥{plan.originalPrice}</span>
+                )}
+                <div className="text-xl font-bold text-purple-600">¥{plan.price}</div>
+              </div>
+            </div>
+
+            {/* 服务内容 */}
+            <div className="mb-6">
+              <h3 className="font-semibold mb-3">您将获得：</h3>
+              <div className="space-y-2">
+                {plan.features.map((feature, index) => (
+                  <div key={index} className="flex items-center">
+                    <Check className="w-5 h-5 text-green-500 mr-2 flex-shrink-0" />
+                    <span className="text-sm">{feature}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 支付方式 */}
+            <div className="mb-6">
+              <h3 className="font-semibold mb-3">选择支付方式：</h3>
+              <div className="space-y-2">
+                {[
+                  { id: 'wechat', name: '微信支付', icon: '💚' },
+                  { id: 'alipay', name: '支付宝', icon: '💙' },
+                  { id: 'card', name: '银行卡', icon: '💳' }
+                ].map((method) => (
+                  <button
+                    key={method.id}
+                    onClick={() => setSelectedPaymentMethod(method.id as any)}
+                    className={`w-full flex items-center p-3 rounded-xl border transition-all ${
+                      selectedPaymentMethod === method.id
+                        ? 'border-purple-500 bg-purple-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="mr-3 text-xl">{method.icon}</span>
+                    <span className="font-medium">{method.name}</span>
+                    <div className="ml-auto">
+                      <div className={`w-5 h-5 rounded-full border-2 ${
+                        selectedPaymentMethod === method.id
+                          ? 'border-purple-500 bg-purple-500'
+                          : 'border-gray-300'
+                      }`}>
+                        {selectedPaymentMethod === method.id && (
+                          <Check className="w-3 h-3 text-white mx-auto mt-0.5" />
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 优惠信息 */}
+            {plan.originalPrice && (
+              <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-xl">
+                <div className="flex items-center text-red-600">
+                  <Tag className="w-4 h-4 mr-2" />
+                  <span className="font-medium text-sm">限时优惠</span>
+                </div>
+                <p className="text-sm text-red-600 mt-1">
+                  立省 ¥{plan.originalPrice - plan.price}，活动仅剩3天！
+                </p>
+              </div>
+            )}
+
+            {/* 服务条款 */}
+            <div className="mb-6">
+              <label className="flex items-start">
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-1 mr-2"
+                />
+                <span className="text-sm text-gray-600">
+                  我已阅读并同意<span className="text-purple-600 underline">《服务协议》</span>和<span className="text-purple-600 underline">《隐私政策》</span>
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {/* 底部按钮 */}
+          <div className="sticky bottom-0 bg-white p-4 border-t border-gray-200">
+            <button
+              onClick={handlePurchase}
+              disabled={!agreedToTerms}
+              className={`w-full py-4 rounded-xl font-semibold text-lg transition-all ${
+                agreedToTerms
+                  ? 'bg-purple-500 text-white hover:bg-purple-600'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              立即支付 ¥{plan.price}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const tabs = [
     { id: 'home', name: '首页', icon: Home },
     { id: 'recipes', name: '菜谱', icon: BookOpen },
-    { id: 'gamification', name: '成就', icon: Award },
+    { id: 'store', name: '商城', icon: ShoppingCart },
     { id: 'community', name: '社区', icon: Users },
     { id: 'profile', name: '我的', icon: User }
   ];
@@ -3621,6 +4695,7 @@ const App: React.FC = () => {
       {/* Main Content */}
       {activeTab === 'home' && <HomeView />}
       {activeTab === 'recipes' && <RecipesView />}
+      {activeTab === 'store' && <StoreView />}
       {activeTab === 'gamification' && <GamificationView />}
       {activeTab === 'community' && <CommunityView />}
       {activeTab === 'profile' && <ProfileView />}
@@ -3657,6 +4732,7 @@ const App: React.FC = () => {
       {selectedRecipe && showRecipeDetail && <RecipeDetailModal recipe={selectedRecipe} />}
       {showProfileSetup && <HealthProfileSetup />}
       {showHealthProfile && <HealthProfileView />}
+      {showPurchaseModal && selectedDietPlan && <PurchaseModal plan={selectedDietPlan} />}
     </div>
   );
 };
