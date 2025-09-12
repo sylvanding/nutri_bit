@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { Camera, Home, BookOpen, Users, User, MessageCircle, TrendingUp, Target, Award, ShoppingCart, Heart, Star, Clock, Zap, Check, BarChart3, Plus, Utensils, Coffee, Sandwich, Apple, Droplets, Filter, Search, Tag, Sparkles, Crown, Brain, Eye, Cpu, Wand2, Stethoscope, Calendar, Video, Phone, MessageSquare, CheckCircle, XCircle, Badge, GraduationCap, MapPin } from 'lucide-react';
+import { Camera, Home, BookOpen, Users, User, MessageCircle, TrendingUp, Target, Award, ShoppingCart, Heart, Star, Clock, Zap, Check, BarChart3, Plus, Utensils, Coffee, Sandwich, Apple, Droplets, Filter, Search, Tag, Sparkles, Crown, Brain, Eye, Cpu, Wand2, Stethoscope, Video, Phone, MessageSquare, CheckCircle, XCircle, Badge, GraduationCap, MapPin } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import UltraSimpleGamificationPanel from './components/gamification/UltraSimpleGamificationPanel';
 import { useUltraSimpleGamificationStore } from './stores/ultraSimpleGamificationStore';
 
 // 会员系统导入
 import { useMembership, useMembershipGuard } from './hooks/useMembership';
-import { MembershipBadge, MembershipGuard, FeatureLocker, UsageMeter } from './components/membership/MembershipGuard';
+import { MembershipBadge } from './components/membership/MembershipGuard';
 import { UpgradeModal } from './components/membership/UpgradeModal';
 import { MembershipCenter } from './components/membership/MembershipCenter';
+import { MembershipTier } from './types/membership';
 
 interface NutritionData {
   calories: number;
@@ -267,10 +268,10 @@ const App: React.FC = () => {
   const [selectedKOLPost, setSelectedKOLPost] = useState<KOLPost | null>(null);
   
   // 游戏化系统
-  const { addExp, logMeal, level, exp, streak, totalMeals } = useUltraSimpleGamificationStore();
+  const { addExp, logMeal, level, exp, streak, totalMeals, achievements } = useUltraSimpleGamificationStore();
   
   // 会员系统
-  const { membership, permissions, usage, actions, ui } = useMembership();
+  const { membership, permissions, actions, ui } = useMembership();
   const { executeWithPermission } = useMembershipGuard();
   
   // 新增状态：拍照后的餐次选择
@@ -3732,11 +3733,6 @@ const App: React.FC = () => {
             <p className="text-green-100 text-sm">精准营养解码，预见更健康的你</p>
           </div>
           <div className="flex items-center gap-3">
-            {/* 会员徽章 */}
-            <MembershipBadge 
-              onClick={actions.showCenter}
-              className="hover:scale-105 transition-transform"
-            />
             {/* 游戏化状态显示 */}
             <div className="flex items-center gap-2 bg-white/20 rounded-full px-3 py-1">
               <Zap size={16} className="text-yellow-300" />
@@ -5138,124 +5134,209 @@ const App: React.FC = () => {
   };
 
   const ProfileView = () => (
-    <div className="pb-20 p-6">
-      <div className="text-center mb-8">
-        <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4">
-          {healthProfile ? healthProfile.name.charAt(0) : 'U'}
+    <div className="pb-20 p-6 bg-gray-50 min-h-screen">
+      {/* 用户信息卡片 */}
+      <div className="bg-gradient-to-br from-green-500 to-blue-600 rounded-2xl p-6 text-white mb-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-12 -translate-x-12"></div>
+        
+        <div className="relative z-10 flex items-center mb-4">
+          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-white text-xl font-bold mr-4 backdrop-blur-sm">
+            {healthProfile ? healthProfile.name.charAt(0) : 'U'}
+          </div>
+          <div>
+            <h1 className="text-xl font-bold mb-1">{healthProfile ? healthProfile.name : '健康达人'}</h1>
+            <p className="text-white/80 text-sm">已坚持记录 42 天</p>
+          </div>
         </div>
-        <h1 className="text-xl font-bold mb-2">{healthProfile ? healthProfile.name : '健康达人'}</h1>
-        <p className="text-gray-600 text-sm">已坚持记录 42 天</p>
+        
+        {/* 会员徽章区域 */}
+        <div className="flex items-center justify-between relative z-10">
+          <div className="flex items-center gap-3">
+            <MembershipBadge 
+              onClick={actions.showCenter}
+              className="hover:scale-105 transition-transform"
+            />
+            <div className="text-xs">
+              <div className="text-white/90">当前会员等级</div>
+              <div className="font-semibold">{membership?.tier === MembershipTier.FREE ? '免费版' : membership?.tier === MembershipTier.PREMIUM ? '会员版' : membership?.tier === MembershipTier.VIP ? 'VIP版' : '免费版'}</div>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-sm text-white/80">等级 {level}</div>
+            <div className="text-lg font-bold">{exp} XP</div>
+          </div>
+        </div>
       </div>
 
-      {/* 显示健康档案状态 */}
+      {/* 统计数据卡片 */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="bg-white rounded-xl p-4 text-center shadow-sm">
+          <div className="text-2xl font-bold text-green-600 mb-1">92.5</div>
+          <div className="text-xs text-gray-600">平均营养分</div>
+        </div>
+        <div className="bg-white rounded-xl p-4 text-center shadow-sm">
+          <div className="text-2xl font-bold text-blue-600 mb-1">{totalMeals}</div>
+          <div className="text-xs text-gray-600">记录餐数</div>
+        </div>
+        <div className="bg-white rounded-xl p-4 text-center shadow-sm">
+          <div className="text-2xl font-bold text-purple-600 mb-1">{streak}</div>
+          <div className="text-xs text-gray-600">连续天数</div>
+        </div>
+      </div>
+
+      {/* 健康档案状态 */}
       {healthProfile && (
-        <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-4 mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-gray-800">我的健康档案</h3>
+        <div className="bg-white rounded-xl p-4 mb-6 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-800 flex items-center">
+              <User className="w-4 h-4 mr-2 text-green-600" />
+              我的健康档案
+            </h3>
             <button 
               onClick={() => setShowHealthProfile(true)}
-              className="text-green-600 text-sm font-medium"
+              className="text-green-600 text-sm font-medium hover:text-green-700"
             >
               查看详情
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="bg-white/70 rounded-lg p-2 text-center">
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
               <div className="font-semibold text-gray-800">{healthProfile.height} cm</div>
-              <div className="text-gray-600">身高</div>
+              <div className="text-gray-600 text-xs">身高</div>
             </div>
-            <div className="bg-white/70 rounded-lg p-2 text-center">
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
               <div className="font-semibold text-gray-800">{healthProfile.weight} kg</div>
-              <div className="text-gray-600">体重</div>
+              <div className="text-gray-600 text-xs">体重</div>
             </div>
           </div>
-          <div className="mt-2 text-xs text-gray-600">
+          <div className="mt-3 text-xs text-gray-600 bg-gray-50 rounded-lg p-2">
             BMI: {(healthProfile.weight / Math.pow(healthProfile.height / 100, 2)).toFixed(1)} • 
             每日目标: {nutritionTargets.calories} 千卡
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="text-center">
-          <div className="text-2xl font-bold text-green-600 mb-1">92.5</div>
-          <div className="text-sm text-gray-600">平均营养分</div>
+      {/* 功能菜单 */}
+      <div className="space-y-3 mb-6">
+        {/* VIP会员中心 */}
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <button 
+            onClick={actions.showCenter}
+            className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center mr-3">
+                <Crown className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="font-semibold text-gray-800">VIP会员中心</div>
+                <div className="text-xs text-gray-500">解锁全部高级功能</div>
+              </div>
+            </div>
+            <div className="flex items-center">
+              {membership?.tier && membership?.tier !== MembershipTier.FREE && (
+                <div className="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded-full mr-2">
+                  {membership?.tier}
+                </div>
+              )}
+              <span className="text-gray-400">→</span>
+            </div>
+          </button>
         </div>
-        <div className="text-center">
-          <div className="text-2xl font-bold text-blue-600 mb-1">127</div>
-          <div className="text-sm text-gray-600">记录餐数</div>
+
+        {/* 成就中心 */}
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <button 
+            onClick={() => setActiveTab('gamification')}
+            className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-500 rounded-lg flex items-center justify-center mr-3">
+                <Award className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="font-semibold text-gray-800">成就中心</div>
+                <div className="text-xs text-gray-500">查看徽章和连击记录</div>
+              </div>
+            </div>
+            <div className="flex items-center">
+              <div className="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full mr-2">
+                {achievements ? achievements.length : 0} 个成就
+              </div>
+              <span className="text-gray-400">→</span>
+            </div>
+          </button>
         </div>
-        <div className="text-center">
-          <div className="text-2xl font-bold text-purple-600 mb-1">15</div>
-          <div className="text-sm text-gray-600">成就徽章</div>
+
+        {/* 其他功能 */}
+        <div className="bg-white rounded-xl shadow-sm">
+          <button 
+            onClick={() => healthProfile ? setShowHealthProfile(true) : setShowProfileSetup(true)}
+            className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100"
+          >
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-500 rounded-lg flex items-center justify-center mr-3">
+                <User className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="font-semibold text-gray-800">健康档案</div>
+                <div className="text-xs text-gray-500">{healthProfile ? '管理个人健康信息' : '创建健康档案'}</div>
+              </div>
+            </div>
+            <span className="text-gray-400">→</span>
+          </button>
+
+          <button className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100">
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-lg flex items-center justify-center mr-3">
+                <Target className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="font-semibold text-gray-800">健康目标</div>
+                <div className="text-xs text-gray-500">设置和调整营养目标</div>
+              </div>
+            </div>
+            <span className="text-gray-400">→</span>
+          </button>
+
+          <button className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100">
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-violet-500 rounded-lg flex items-center justify-center mr-3">
+                <TrendingUp className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="font-semibold text-gray-800">健康报告</div>
+                <div className="text-xs text-gray-500">查看详细营养分析</div>
+              </div>
+            </div>
+            <span className="text-gray-400">→</span>
+          </button>
+
+          <button className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex items-center justify-center mr-3">
+                <ShoppingCart className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="font-semibold text-gray-800">我的订单</div>
+                <div className="text-xs text-gray-500">查看购买历史记录</div>
+              </div>
+            </div>
+            <span className="text-gray-400">→</span>
+          </button>
         </div>
       </div>
 
-      <div className="space-y-4">
-        <div className="bg-white p-4 rounded-lg shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <User className="w-5 h-5 text-green-600 mr-3" />
-              <span className="font-medium">健康档案</span>
-            </div>
-            <button 
-              onClick={() => healthProfile ? setShowHealthProfile(true) : setShowProfileSetup(true)}
-              className="text-sm text-gray-500"
-            >
-              {healthProfile ? '查看详情' : '创建档案'} →
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Target className="w-5 h-5 text-blue-600 mr-3" />
-              <span className="font-medium">健康目标</span>
-            </div>
-            <span className="text-sm text-gray-500">→</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <TrendingUp className="w-5 h-5 text-purple-600 mr-3" />
-              <span className="font-medium">健康报告</span>
-            </div>
-            <span className="text-sm text-gray-500">→</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Award className="w-5 h-5 text-yellow-600 mr-3" />
-              <span className="font-medium">成就中心</span>
-            </div>
-            <span className="text-sm text-gray-500">→</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <ShoppingCart className="w-5 h-5 text-orange-600 mr-3" />
-              <span className="font-medium">我的订单</span>
-            </div>
-            <span className="text-sm text-gray-500">→</span>
-          </div>
-        </div>
-      </div>
-
+      {/* 升级提示卡片 */}
       {!healthProfile && (
-        <div className="mt-8 bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-2xl">
+        <div className="bg-gradient-to-r from-green-400 to-blue-500 rounded-xl p-6 text-white mb-6">
           <div className="text-center">
             <h3 className="font-bold text-lg mb-2">创建健康档案</h3>
-            <p className="text-gray-600 text-sm mb-4">填写基本信息，获得个性化营养建议</p>
+            <p className="text-white/90 text-sm mb-4">填写基本信息，获得个性化营养建议</p>
             <button 
               onClick={() => setShowProfileSetup(true)}
-              className="bg-green-500 text-white px-8 py-3 rounded-lg font-semibold"
+              className="bg-white text-gray-800 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
             >
               立即创建档案
             </button>
@@ -5263,13 +5344,17 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {healthProfile && (
-        <div className="mt-8 bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-2xl">
+      {(!membership?.tier || membership?.tier === MembershipTier.FREE) && (
+        <div className="bg-gradient-to-r from-amber-400 to-orange-500 rounded-xl p-6 text-white">
           <div className="text-center">
-            <h3 className="font-bold text-lg mb-2">升级至专业版</h3>
-            <p className="text-gray-600 text-sm mb-4">解锁全部AI功能和无限次识别</p>
-            <button className="bg-green-500 text-white px-8 py-3 rounded-lg font-semibold">
-              立即升级 ¥19.9/月
+            <div className="text-3xl mb-2">👑</div>
+            <h3 className="font-bold text-lg mb-2">升级VIP会员</h3>
+            <p className="text-white/90 text-sm mb-4">解锁全部AI功能、无限识别和专属特权</p>
+            <button 
+              onClick={actions.showCenter}
+              className="bg-white text-gray-800 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+            >
+              查看会员特权
             </button>
           </div>
         </div>
@@ -5745,7 +5830,6 @@ const App: React.FC = () => {
     { id: 'recipes', name: '菜谱', icon: BookOpen },
     { id: 'store', name: '商城', icon: ShoppingCart },
     { id: 'nutritionist', name: '营养师', icon: Stethoscope },
-    { id: 'gamification', name: '成就', icon: Award },
     { id: 'community', name: '社区', icon: Users },
     { id: 'profile', name: '我的', icon: User }
   ];
