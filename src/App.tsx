@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Home, BookOpen, Users, User, MessageCircle, TrendingUp, Target, Award, ShoppingCart, Heart, Star, Clock, Zap, Check, BarChart3, Plus, Utensils, Coffee, Sandwich, Apple, Droplets, Filter, Search, Tag, Sparkles, Crown, Brain, Eye, Cpu, Wand2, Stethoscope, Video, Phone, MessageSquare, CheckCircle, XCircle, Badge, GraduationCap, MapPin } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import UltraSimpleGamificationPanel from './components/gamification/UltraSimpleGamificationPanel';
@@ -168,6 +168,17 @@ interface UserNutritionPlan {
   };
   adherenceRate: number; // 遵循率 0-100
   remainingDays: number;
+}
+
+// AI聊天消息接口
+interface ChatMessage {
+  id: number;
+  text: string;
+  isAI: boolean;
+  timestamp: Date;
+  mood?: 'happy' | 'caring' | 'excited' | 'thinking';
+  hasCard?: boolean;
+  card?: any;
 }
 
 // 营养师相关接口
@@ -3651,77 +3662,524 @@ const App: React.FC = () => {
     );
   };
 
-  const AIChat = () => (
-    <div className="fixed inset-0 bg-white z-50">
-      <div className="flex flex-col h-full">
-        <div className="bg-green-500 text-white p-4 pb-6">
-          <div className="flex items-center">
-            <button 
-              onClick={() => setAiChatOpen(false)}
-              className="mr-3 p-1"
-            >
-              ←
-            </button>
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-green-400 rounded-full flex items-center justify-center mr-3">
-                🦝
+  // AI营养师卡卡智能交互界面
+  const AIChat = () => {
+    const [messages, setMessages] = useState<ChatMessage[]>([
+      {
+        id: 1,
+        text: "主人您好！我是您的专属营养师卡卡 🦝✨ 我发现您今天蛋白质摄入很不错呢，已经完成了74%的目标！👏",
+        isAI: true,
+        timestamp: new Date(Date.now() - 300000),
+        mood: 'happy'
+      },
+      {
+        id: 2,
+        text: "不过我注意到您的膳食纤维摄入稍微不足，晚餐建议加点绿叶蔬菜或者来个苹果当夜宵怎么样？🍎",
+        isAI: true,
+        timestamp: new Date(Date.now() - 240000),
+        mood: 'caring'
+      },
+      {
+        id: 3,
+        text: "好的，谢谢提醒！有什么推荐的晚餐吗？",
+        isAI: false,
+        timestamp: new Date(Date.now() - 180000)
+      },
+      {
+        id: 4,
+        text: "基于您的口味偏好和今日营养缺口，我推荐「蒜蓉西兰花炒虾仁」！高蛋白低脂，还能补充膳食纤维～要不要看看菜谱？",
+        isAI: true,
+        timestamp: new Date(Date.now() - 120000),
+        mood: 'excited'
+      }
+    ]);
+    
+    const [inputText, setInputText] = useState('');
+    const [isTyping, setIsTyping] = useState(false);
+    const [kakaStatus, setKakaStatus] = useState('online'); // online, thinking, typing
+    const [isListening, setIsListening] = useState(false);
+    const [voiceEnabled, setVoiceEnabled] = useState(false);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    // 卡卡的不同情绪状态
+    const kakaMoods = {
+      happy: { emoji: '🦝😊', bgGradient: 'from-green-400 to-green-500' },
+      caring: { emoji: '🦝💕', bgGradient: 'from-green-400 to-blue-400' },
+      excited: { emoji: '🦝✨', bgGradient: 'from-green-400 to-yellow-400' },
+      thinking: { emoji: '🦝🤔', bgGradient: 'from-green-400 to-purple-400' },
+      default: { emoji: '🦝', bgGradient: 'from-green-400 to-green-500' }
+    };
+
+    // 智能回复模板
+    const aiResponses = {
+      nutrition: [
+        "根据您今天的摄入，我建议{suggestion}！这样能更好地平衡营养哦 💪",
+        "您的{nutrient}摄入{status}，建议{recommendation} 🌟",
+        "从营养角度来说，{advice}会对您的健康很有帮助呢 ✨"
+      ],
+      encouragement: [
+        "您今天的饮食记录做得很棒！坚持下去就是最好的投资 💖",
+        "哇，看到您这么认真地记录饮食，卡卡超感动的！🥰",
+        "每一天的健康选择都在让您变得更好，加油！🌟"
+      ],
+      recipes: [
+        "这道菜不仅美味，营养价值也很高呢！要不要我教您制作方法？👩‍🍳",
+        "根据您的口味偏好，我为您推荐了几道营养餐，都很适合您哦 🍽️",
+        "这个搭配既满足味蕾又健康，一举两得！😋"
+      ]
+    };
+
+    // 快捷回复选项
+    const quickReplies = [
+      "今天吃什么好？🤔",
+      "帮我分析营养 📊", 
+      "推荐减脂餐 💪",
+      "我想吃甜食 🍰",
+      "制定饮食计划 📝",
+      "查看今日总结 📈"
+    ];
+
+    // 生成营养建议卡片数据
+    const generateNutritionCard = (type: 'analysis' | 'recommendation') => {
+      if (type === 'analysis') {
+        return {
+          title: "今日营养分析",
+          icon: "📊",
+          data: [
+            { label: "蛋白质", value: "74%", color: "text-blue-600", bgColor: "bg-blue-50" },
+            { label: "碳水化合物", value: "82%", color: "text-green-600", bgColor: "bg-green-50" },
+            { label: "膳食纤维", value: "45%", color: "text-orange-600", bgColor: "bg-orange-50" },
+            { label: "维生素C", value: "91%", color: "text-purple-600", bgColor: "bg-purple-50" }
+          ],
+          score: 85,
+          suggestion: "膳食纤维稍显不足，建议增加蔬菜水果摄入"
+        };
+      } else {
+        return {
+          title: "个性化推荐",
+          icon: "🎯",
+          dishes: [
+            { name: "蒜蓉西兰花炒虾仁", calories: 180, protein: 25, time: 15 },
+            { name: "番茄鸡胸肉", calories: 220, protein: 30, time: 20 },
+            { name: "三文鱼蔬菜沙拉", calories: 280, protein: 28, time: 10 }
+          ]
+        };
+      }
+    };
+
+    // 模拟AI智能回复
+    const generateAIResponse = (userMessage: string): { text: string; card?: any; hasCard?: boolean } => {
+      const message = userMessage.toLowerCase();
+      
+      if (message.includes('吃什么') || message.includes('推荐') || message.includes('晚餐') || message.includes('午餐') || message.includes('早餐')) {
+        const suggestions = [
+          "蒜蓉西兰花炒虾仁配糙米饭",
+          "番茄鸡胸肉意面",
+          "三文鱼蔬菜沙拉",
+          "紫薯银耳羹配水煮蛋",
+          "牛油果吐司配煎蛋"
+        ];
+        return {
+          text: `根据您的营养需求，我为您推荐几道营养餐！既美味又营养，要不要看看具体制作方法？👩‍🍳✨`,
+          card: generateNutritionCard('recommendation'),
+          hasCard: true
+        };
+      }
+      
+      if (message.includes('减脂') || message.includes('减肥') || message.includes('瘦身')) {
+        return {
+          text: "减脂期间要保证营养均衡哦！我建议高蛋白、适量碳水、丰富蔬菜的搭配。比如鸡胸肉配彩椒、糙米饭，既有饱腹感又不会热量超标 💪✨"
+        };
+      }
+      
+      if (message.includes('甜食') || message.includes('甜品') || message.includes('蛋糕')) {
+        return {
+          text: "理解您想吃甜食的心情呢 🥰 不如试试自制水果酸奶杯或者红薯紫薯？既能满足甜味需求，又相对健康一些～偶尔放纵一下也没关系啦！"
+        };
+      }
+      
+      if (message.includes('营养') || message.includes('分析') || message.includes('数据')) {
+        return {
+          text: "让我来为您分析今天的营养摄入情况吧！📊 从数据来看，您今天的营养摄入整体很不错呢！",
+          card: generateNutritionCard('analysis'),
+          hasCard: true
+        };
+      }
+      
+      if (message.includes('计划') || message.includes('规划')) {
+        return {
+          text: "好的！我会根据您的身体状况、目标和偏好来制定个性化饮食计划 📝 包括三餐安排、营养搭配和健康小贴士，让健康饮食变得简单有趣！"
+        };
+      }
+      
+      // 默认温暖回复
+      const defaultResponses = [
+        "听起来很有趣呢！能告诉我更多细节吗？我想更好地帮助您 🤗",
+        "卡卡正在思考中...这个问题让我想到了很多营养知识呢！💭",
+        "您的健康意识真的很棒！有任何营养问题都可以问我哦 ✨",
+        "每一个关于健康的想法都值得鼓励！说说您的具体需求吧 🌟"
+      ];
+      
+      return {
+        text: defaultResponses[Math.floor(Math.random() * defaultResponses.length)]
+      };
+    };
+
+    // 发送消息
+    const sendMessage = async (text: string) => {
+      if (!text.trim()) return;
+      
+      // 添加用户消息
+      const userMessage = {
+        id: Date.now(),
+        text: text,
+        isAI: false,
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, userMessage]);
+      setInputText('');
+      setKakaStatus('thinking');
+      
+      // 模拟AI思考和回复
+      setTimeout(() => {
+        setKakaStatus('typing');
+        setIsTyping(true);
+        
+        setTimeout(() => {
+          const aiResponse = generateAIResponse(text);
+          const aiReply = {
+            id: Date.now() + 1,
+            text: aiResponse.text,
+            isAI: true,
+            timestamp: new Date(),
+            mood: ['happy', 'caring', 'excited'][Math.floor(Math.random() * 3)] as 'happy' | 'caring' | 'excited',
+            hasCard: aiResponse.hasCard,
+            card: aiResponse.card
+          };
+          
+          setMessages(prev => [...prev, aiReply]);
+          setIsTyping(false);
+          setKakaStatus('online');
+          
+          // AI回复语音播报
+          if (voiceEnabled) {
+            setTimeout(() => speakText(aiResponse.text), 500);
+          }
+        }, 1500 + Math.random() * 1000); // 随机打字时间
+      }, 800); // 思考时间
+    };
+
+    // 快捷回复
+    const handleQuickReply = (text: string) => {
+      sendMessage(text);
+    };
+
+    // 自动滚动到底部
+    useEffect(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages, isTyping]);
+
+    // 语音识别功能
+    const startVoiceRecognition = () => {
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        alert('您的浏览器不支持语音识别功能');
+        return;
+      }
+
+      const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+      const recognition = new SpeechRecognition();
+      
+      recognition.lang = 'zh-CN';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        setKakaStatus('thinking');
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInputText(transcript);
+        setIsListening(false);
+        setKakaStatus('online');
+      };
+
+      recognition.onerror = () => {
+        setIsListening(false);
+        setKakaStatus('online');
+        alert('语音识别出错，请重试');
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        setKakaStatus('online');
+      };
+
+      recognition.start();
+    };
+
+    // 语音合成功能
+    const speakText = (text: string) => {
+      if (!voiceEnabled || !('speechSynthesis' in window)) return;
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'zh-CN';
+      utterance.rate = 0.9;
+      utterance.pitch = 1.2;
+      utterance.volume = 0.8;
+
+      // 尝试使用中文女声
+      const voices = speechSynthesis.getVoices();
+      const chineseVoice = voices.find(voice => voice.lang.includes('zh') && voice.name.includes('Female'));
+      if (chineseVoice) {
+        utterance.voice = chineseVoice;
+      }
+
+      speechSynthesis.speak(utterance);
+    };
+
+    // 获取当前卡卡状态的视觉效果
+    const getCurrentKakaStyle = () => {
+      if (kakaStatus === 'thinking') return kakaMoods.thinking;
+      if (kakaStatus === 'typing') return kakaMoods.excited;
+      return kakaMoods.default;
+    };
+
+    return (
+      <div className="fixed inset-0 bg-white z-50">
+        <div className="flex flex-col h-full">
+          {/* 头部 - 增强设计 */}
+          <div className={`bg-gradient-to-r ${getCurrentKakaStyle().bgGradient} text-white p-4 pb-6 shadow-lg`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <button 
+                  onClick={() => setAiChatOpen(false)}
+                  className="mr-3 p-2 rounded-full hover:bg-white/20 transition-colors"
+                >
+                  ←
+                </button>
+                <div className="flex items-center">
+                  <div className="relative">
+                    <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mr-3 backdrop-blur-sm">
+                      <span className="text-xl">{getCurrentKakaStyle().emoji}</span>
+                    </div>
+                    {/* 在线状态指示器 */}
+                    <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+                      kakaStatus === 'online' ? 'bg-green-400' : 
+                      kakaStatus === 'thinking' ? 'bg-yellow-400' : 'bg-blue-400'
+                    }`}>
+                      {kakaStatus === 'typing' && (
+                        <div className="flex space-x-1 items-center justify-center h-full">
+                          <div className="w-1 h-1 bg-white rounded-full animate-bounce"></div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-lg">AI营养师卡卡</div>
+                    <div className="text-sm opacity-90">
+                      {kakaStatus === 'thinking' ? '🤔 正在思考...' : 
+                       kakaStatus === 'typing' ? '💬 正在回复...' : '😊 您的专属健康管家'}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <div className="font-semibold">AI营养师卡卡</div>
-                <div className="text-sm opacity-90">您的专属健康管家</div>
+              {/* 功能按钮 */}
+              <div className="flex space-x-2">
+                <button 
+                  onClick={() => setVoiceEnabled(!voiceEnabled)}
+                  className={`p-2 rounded-full transition-colors ${
+                    voiceEnabled ? 'bg-white/30 text-white' : 'bg-white/10 text-white/70'
+                  } hover:bg-white/20`}
+                  title={voiceEnabled ? '关闭语音播报' : '开启语音播报'}
+                >
+                  {voiceEnabled ? '🔊' : '🔇'}
+                </button>
+                <button className="p-2 rounded-full hover:bg-white/20 transition-colors">
+                  ⚙️
+                </button>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex-1 p-4 space-y-4">
-          <div className="flex items-start">
-            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3 mt-1">
-              🦝
-            </div>
-            <div className="bg-gray-100 p-3 rounded-2xl rounded-tl-sm max-w-xs">
-              <p className="text-sm">主人您好！我发现您今天蛋白质摄入很不错呢，已经完成了74%的目标！👏</p>
+          {/* 聊天消息区域 - 增强设计 */}
+          <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
+            <div className="space-y-4">
+              {messages.map((message, index) => (
+                <div key={message.id} className={`flex ${message.isAI ? 'items-start animate-slideInLeft' : 'justify-end animate-slideInRight'}`}>
+                  {message.isAI && (
+                    <div className="w-8 h-8 bg-gradient-to-br from-green-100 to-green-200 rounded-full flex items-center justify-center mr-3 mt-1 shadow-sm animate-heartbeat">
+                      <span className="text-sm">
+                        {message.mood && message.mood in kakaMoods ? kakaMoods[message.mood].emoji.split('🦝')[1] || '🦝' : '🦝'}
+                      </span>
+                    </div>
+                  )}
+                  <div className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl shadow-sm transition-all hover:shadow-md ${
+                    message.isAI 
+                      ? 'bg-white border border-gray-100 rounded-tl-sm hover:border-green-200' 
+                      : 'bg-gradient-to-r from-green-500 to-green-600 text-white rounded-tr-sm hover:from-green-600 hover:to-green-700'
+                  }`}>
+                    <p className="text-sm leading-relaxed">{message.text}</p>
+                    <div className={`text-xs mt-2 flex items-center justify-between ${message.isAI ? 'text-gray-400' : 'text-green-100'}`}>
+                      <span>{message.timestamp.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span>
+                      {!message.isAI && (
+                        <span className="text-xs">✓</span>
+                      )}
+                    </div>
+                    {/* AI消息的营养建议标签 */}
+                    {message.isAI && (message.text.includes('推荐') || message.text.includes('建议')) && (
+                      <div className="mt-2 flex space-x-1">
+                        <span className="inline-block bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full">💡 营养建议</span>
+                      </div>
+                    )}
+                    {/* 食谱相关消息的标签 */}
+                    {message.isAI && message.text.includes('菜谱') && (
+                      <div className="mt-2 flex space-x-1">
+                        <span className="inline-block bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full">👩‍🍳 菜谱推荐</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* 营养建议卡片 */}
+                  {message.isAI && message.hasCard && message.card && (
+                    <div className="w-full max-w-sm mt-3 animate-fadeIn">
+                      {message.card.title === "今日营养分析" ? (
+                        <div className="bg-gradient-to-br from-blue-50 to-green-50 border border-blue-100 rounded-xl p-4 shadow-sm">
+                          <div className="flex items-center mb-3">
+                            <span className="text-lg mr-2">{message.card.icon}</span>
+                            <h4 className="font-semibold text-gray-800">{message.card.title}</h4>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 mb-3">
+                            {message.card.data.map((item: any, idx: number) => (
+                              <div key={idx} className={`${item.bgColor} p-3 rounded-lg text-center`}>
+                                <div className={`text-lg font-bold ${item.color}`}>{item.value}</div>
+                                <div className="text-xs text-gray-600">{item.label}</div>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="bg-white p-3 rounded-lg border border-gray-100">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium text-gray-700">综合评分</span>
+                              <span className="text-lg font-bold text-green-600">{message.card.score}分</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-gradient-to-r from-green-400 to-green-500 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${message.card.score}%` }}
+                              ></div>
+                            </div>
+                            <p className="text-xs text-gray-600 mt-2">{message.card.suggestion}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-gradient-to-br from-orange-50 to-yellow-50 border border-orange-100 rounded-xl p-4 shadow-sm">
+                          <div className="flex items-center mb-3">
+                            <span className="text-lg mr-2">{message.card.icon}</span>
+                            <h4 className="font-semibold text-gray-800">{message.card.title}</h4>
+                          </div>
+                          <div className="space-y-2">
+                            {message.card.dishes.map((dish: any, idx: number) => (
+                              <div key={idx} className="bg-white p-3 rounded-lg border border-gray-100 hover:border-orange-200 transition-colors cursor-pointer">
+                                <div className="flex items-center justify-between mb-1">
+                                  <h5 className="font-medium text-gray-800 text-sm">{dish.name}</h5>
+                                  <span className="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded-full">{dish.time}分钟</span>
+                                </div>
+                                <div className="flex items-center space-x-3 text-xs text-gray-600">
+                                  <span>🔥 {dish.calories}千卡</span>
+                                  <span>💪 {dish.protein}g蛋白质</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <button className="w-full mt-3 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors">
+                            查看详细菜谱 →
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+              
+              {/* 打字指示器 */}
+              {isTyping && (
+                <div className="flex items-start animate-fadeIn">
+                  <div className="w-8 h-8 bg-gradient-to-br from-green-100 to-green-200 rounded-full flex items-center justify-center mr-3 mt-1">
+                    🦝
+                  </div>
+                  <div className="bg-white px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm border border-gray-100">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
             </div>
           </div>
 
-          <div className="flex items-start">
-            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3 mt-1">
-              🦝
-            </div>
-            <div className="bg-gray-100 p-3 rounded-2xl rounded-tl-sm max-w-xs">
-              <p className="text-sm">不过我注意到您的膳食纤维摄入稍微不足，晚餐建议加点绿叶蔬菜或者来个苹果当夜宵怎么样？🍎</p>
+          {/* 快捷回复区域 */}
+          <div className="px-4 py-2 bg-white border-t border-gray-100">
+            <div className="flex space-x-2 overflow-x-auto pb-2">
+              {quickReplies.map((reply, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleQuickReply(reply)}
+                  className="flex-shrink-0 px-3 py-2 bg-gray-100 hover:bg-green-100 text-gray-700 hover:text-green-700 rounded-full text-xs font-medium transition-colors whitespace-nowrap"
+                >
+                  {reply}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="flex justify-end">
-            <div className="bg-green-500 text-white p-3 rounded-2xl rounded-tr-sm max-w-xs">
-              <p className="text-sm">好的，谢谢提醒！有什么推荐的晚餐吗？</p>
+          {/* 输入区域 - 增强设计 */}
+          <div className="p-4 bg-white border-t border-gray-200">
+            <div className="flex items-center bg-gray-100 rounded-2xl px-4 py-3">
+              <button className="text-gray-400 hover:text-green-500 mr-3 transition-colors">
+                📷
+              </button>
+              <input 
+                type="text" 
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && sendMessage(inputText)}
+                placeholder="和卡卡聊聊您的饮食想法..."
+                className="flex-1 bg-transparent outline-none text-sm"
+              />
+              <button 
+                onClick={startVoiceRecognition}
+                disabled={isListening}
+                className={`mx-3 transition-colors ${
+                  isListening 
+                    ? 'text-red-500 animate-pulse' 
+                    : 'text-gray-400 hover:text-green-500'
+                }`}
+                title={isListening ? '正在录音...' : '语音输入'}
+              >
+                {isListening ? '🔴' : '🎤'}
+              </button>
+              <button 
+                onClick={() => sendMessage(inputText)}
+                disabled={!inputText.trim()}
+                className={`font-semibold text-sm px-4 py-2 rounded-xl transition-all ${
+                  inputText.trim() 
+                    ? 'text-white bg-gradient-to-r from-green-500 to-green-600 hover:shadow-lg' 
+                    : 'text-gray-400 bg-gray-200'
+                }`}
+              >
+                发送
+              </button>
             </div>
-          </div>
-
-          <div className="flex items-start">
-            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3 mt-1">
-              🦝
-            </div>
-            <div className="bg-gray-100 p-3 rounded-2xl rounded-tl-sm max-w-xs">
-              <p className="text-sm">基于您的口味偏好和今日营养缺口，我推荐"蒜蓉西兰花炒虾仁"！高蛋白低脂，还能补充膳食纤维～要不要看看菜谱？</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-4 border-t">
-          <div className="flex items-center bg-gray-100 rounded-full px-4 py-2">
-            <input 
-              type="text" 
-              placeholder="和卡卡聊聊您的饮食想法..."
-              className="flex-1 bg-transparent outline-none text-sm"
-            />
-            <button className="text-green-500 font-semibold text-sm ml-2">发送</button>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const HomeView = () => (
     <div className="pb-20">
