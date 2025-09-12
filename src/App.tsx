@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Camera, Home, BookOpen, Users, User, MessageCircle, TrendingUp, Target, Award, ShoppingCart, Heart, Star, Clock, Zap, Check, BarChart3, Plus, Utensils, Coffee, Sandwich, Apple, Droplets, Filter, Search, Tag, Sparkles, Crown, Brain, Eye, Cpu, Wand2 } from 'lucide-react';
+import { Camera, Home, BookOpen, Users, User, MessageCircle, TrendingUp, Target, Award, ShoppingCart, Heart, Star, Clock, Zap, Check, BarChart3, Plus, Utensils, Coffee, Sandwich, Apple, Droplets, Filter, Search, Tag, Sparkles, Crown, Brain, Eye, Cpu, Wand2, Stethoscope, Calendar, Video, Phone, MessageSquare, CheckCircle, XCircle, Badge, GraduationCap, MapPin } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import UltraSimpleGamificationPanel from './components/gamification/UltraSimpleGamificationPanel';
 import { useUltraSimpleGamificationStore } from './stores/ultraSimpleGamificationStore';
@@ -163,11 +163,95 @@ interface UserNutritionPlan {
   remainingDays: number;
 }
 
+// 营养师相关接口
+interface Nutritionist {
+  id: string;
+  name: string;
+  avatar: string;
+  title: string;
+  experience: number; // 工作年限
+  rating: number;
+  reviewCount: number;
+  specialties: string[]; // 专业领域
+  education: string; // 教育背景
+  certifications: string[]; // 认证资质
+  consultationPrice: number; // 单次咨询价格
+  available: boolean;
+  nextAvailableTime?: string;
+  bio: string; // 个人简介
+  languages: string[]; // 语言能力
+  location: string;
+}
+
+interface ConsultationSession {
+  id: string;
+  nutritionistId: string;
+  nutritionist: Nutritionist;
+  userId: string;
+  date: string;
+  time: string;
+  duration: number; // 分钟
+  type: 'video' | 'voice' | 'chat';
+  status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
+  price: number;
+  notes?: string;
+  prescription?: string; // 营养师建议
+  followUpDate?: string;
+  chatHistory?: ConsultationMessage[];
+}
+
+interface ConsultationMessage {
+  id: string;
+  senderId: string;
+  senderType: 'user' | 'nutritionist';
+  content: string;
+  timestamp: string;
+  type: 'text' | 'image' | 'file' | 'voice';
+  attachments?: string[];
+}
+
+interface PremiumMealPlan {
+  id: string;
+  title: string;
+  description: string;
+  targetGroup: 'pregnant' | 'diabetes' | 'postSurgery' | 'elderly' | 'children' | 'athletes';
+  targetGroupLabel: string;
+  duration: number; // 天数
+  price: number;
+  originalPrice: number;
+  discount?: number;
+  image: string;
+  features: string[];
+  included: string[]; // 包含内容
+  nutritionist: Nutritionist;
+  sampleMeals: {
+    breakfast: string[];
+    lunch: string[];
+    dinner: string[];
+    snacks: string[];
+  };
+  benefits: string[]; // 预期效果
+  contraindications?: string[]; // 禁忌症
+  rating: number;
+  reviewCount: number;
+  isPopular?: boolean;
+  tags: string[];
+}
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [showCamera, setShowCamera] = useState(false);
   const [showNutritionReport, setShowNutritionReport] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
+  
+  // 营养师咨询相关状态
+  const [selectedNutritionist, setSelectedNutritionist] = useState<Nutritionist | null>(null);
+  const [showNutritionistDetail, setShowNutritionistDetail] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showConsultationChat, setShowConsultationChat] = useState(false);
+  const [currentConsultation, setCurrentConsultation] = useState<ConsultationSession | null>(null);
+  const [selectedPremiumPlan, setSelectedPremiumPlan] = useState<PremiumMealPlan | null>(null);
+  const [showPremiumPlanDetail, setShowPremiumPlanDetail] = useState(false);
   
   // 商城相关状态
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -933,6 +1017,148 @@ const App: React.FC = () => {
   ];
 
   // 饮食计划数据
+  // 营养师数据
+  const nutritionists: Nutritionist[] = [
+    {
+      id: 'nutritionist-1',
+      name: '李慧敏',
+      avatar: 'https://images.pexels.com/photos/5207262/pexels-photo-5207262.jpeg?auto=compress&cs=tinysrgb&w=150',
+      title: '注册营养师 · 临床营养专家',
+      experience: 8,
+      rating: 4.9,
+      reviewCount: 342,
+      specialties: ['糖尿病营养', '孕期营养', '减重管理', '慢病调理'],
+      education: '北京协和医学院 临床营养学硕士',
+      certifications: ['注册营养师（RD）', 'ADA认证糖尿病教育者', '国家二级营养师'],
+      consultationPrice: 299,
+      available: true,
+      nextAvailableTime: '今天 14:30',
+      bio: '拥有8年临床营养经验，擅长糖尿病、高血压等慢性疾病的营养干预，已帮助超过1000名患者改善健康状况。',
+      languages: ['中文', '英文'],
+      location: '北京'
+    },
+    {
+      id: 'nutritionist-2',
+      name: '张健康',
+      avatar: 'https://images.pexels.com/photos/6975474/pexels-photo-6975474.jpeg?auto=compress&cs=tinysrgb&w=150',
+      title: '运动营养师 · 体重管理专家',
+      experience: 6,
+      rating: 4.8,
+      reviewCount: 278,
+      specialties: ['运动营养', '增肌减脂', '代谢调节', '营养评估'],
+      education: '上海体育学院 运动营养学博士',
+      certifications: ['国际运动营养师（ISSN）', '注册营养师（RD）', 'ACSM认证'],
+      consultationPrice: 268,
+      available: true,
+      nextAvailableTime: '明天 09:00',
+      bio: '专注运动营养领域6年，为多位职业运动员制定营养方案，在增肌减脂方面有丰富经验。',
+      languages: ['中文'],
+      location: '上海'
+    },
+    {
+      id: 'nutritionist-3',
+      name: '王美丽',
+      avatar: 'https://images.pexels.com/photos/5207334/pexels-photo-5207334.jpeg?auto=compress&cs=tinysrgb&w=150',
+      title: '母婴营养师 · 儿童营养专家',
+      experience: 10,
+      rating: 4.9,
+      reviewCount: 456,
+      specialties: ['孕期营养', '产后康复', '儿童营养', '母乳喂养'],
+      education: '复旦大学 营养与食品卫生学博士',
+      certifications: ['注册营养师（RD）', '国际泌乳顾问（IBCLC）', '儿童营养师'],
+      consultationPrice: 329,
+      available: false,
+      nextAvailableTime: '后天 10:30',
+      bio: '从事母婴营养工作10年，专业指导孕期营养、产后康复及0-6岁儿童营养，深受妈妈们信赖。',
+      languages: ['中文', '英文'],
+      location: '广州'
+    }
+  ];
+
+  // 付费高级饮食计划数据
+  const premiumMealPlans: PremiumMealPlan[] = [
+    {
+      id: 'premium-plan-1',
+      title: '孕期营养全程指导计划',
+      description: '为准妈妈量身定制的280天孕期营养方案，涵盖孕早期到产后的全程营养指导',
+      targetGroup: 'pregnant',
+      targetGroupLabel: '孕妇专享',
+      duration: 280,
+      price: 1299,
+      originalPrice: 1899,
+      discount: 32,
+      image: 'https://images.pexels.com/photos/1556691/pexels-photo-1556691.jpeg?auto=compress&cs=tinysrgb&w=400',
+      features: ['专业营养师1对1指导', '每周营养报告分析', '孕期营养课程', '24小时在线答疑'],
+      included: ['280天个性化食谱', '营养补充剂建议', '孕期体重管理', '胎儿发育营养支持', '产后康复指导'],
+      nutritionist: nutritionists[2],
+      sampleMeals: {
+        breakfast: ['燕麦粥配核桃', '全麦吐司配牛油果', '豆浆配鸡蛋'],
+        lunch: ['清蒸鲈鱼', '菠菜炒鸡蛋', '紫米饭'],
+        dinner: ['冬瓜排骨汤', '清炒西兰花', '小米粥'],
+        snacks: ['坚果酸奶', '新鲜水果', '全麦饼干']
+      },
+      benefits: ['预防妊娠糖尿病', '控制孕期体重', '促进胎儿健康发育', '减少孕期不适'],
+      contraindications: ['妊娠高血压', '多胎妊娠需医生评估'],
+      rating: 4.9,
+      reviewCount: 156,
+      isPopular: true,
+      tags: ['专业指导', '全程跟踪', '个性定制']
+    },
+    {
+      id: 'premium-plan-2',
+      title: '糖尿病营养调理方案',
+      description: '专为糖尿病患者设计的血糖控制营养计划，科学降糖，健康生活',
+      targetGroup: 'diabetes',
+      targetGroupLabel: '糖尿病患者',
+      duration: 90,
+      price: 899,
+      originalPrice: 1299,
+      discount: 31,
+      image: 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=400',
+      features: ['血糖监测指导', '胰岛素调节建议', '运动营养搭配', '并发症预防'],
+      included: ['90天控糖食谱', '血糖记录模板', '营养师月度复查', '紧急咨询通道'],
+      nutritionist: nutritionists[0],
+      sampleMeals: {
+        breakfast: ['燕麦粥', '水煮蛋', '黄瓜丝'],
+        lunch: ['糙米饭', '清蒸鸡胸肉', '凉拌苦瓜'],
+        dinner: ['魔芋面条', '番茄炒蛋', '冬瓜汤'],
+        snacks: ['无糖酸奶', '坚果少量', '黄瓜条']
+      },
+      benefits: ['稳定血糖水平', '改善胰岛素敏感性', '控制并发症风险', '提升生活质量'],
+      contraindications: ['1型糖尿病需医生监督', '严重肾病患者'],
+      rating: 4.8,
+      reviewCount: 203,
+      isPopular: true,
+      tags: ['医学营养', '血糖控制', '专业监测']
+    },
+    {
+      id: 'premium-plan-3',
+      title: '术后康复营养计划',
+      description: '手术后恢复期的专业营养支持，促进伤口愈合，加速康复进程',
+      targetGroup: 'postSurgery',
+      targetGroupLabel: '术后康复',
+      duration: 60,
+      price: 699,
+      originalPrice: 999,
+      discount: 30,
+      image: 'https://images.pexels.com/photos/33865562/pexels-photo-33865562.jpeg?auto=compress&cs=tinysrgb&w=400',
+      features: ['分期营养指导', '伤口愈合促进', '免疫力提升', '康复进度评估'],
+      included: ['术后分期食谱', '营养素补充建议', '康复营养课程', '专家定期随访'],
+      nutritionist: nutritionists[0],
+      sampleMeals: {
+        breakfast: ['蛋白粉燕麦粥', '蒸蛋羹', '温牛奶'],
+        lunch: ['鸡汤面条', '蒸蛋挞', '菠菜汤'],
+        dinner: ['鱼肉粥', '蒸蛋', '冬瓜汤'],
+        snacks: ['蛋白质奶昔', '维C水果', '酸奶']
+      },
+      benefits: ['加速伤口愈合', '提高免疫力', '预防感染', '缩短康复时间'],
+      contraindications: ['严重消化道手术需医生评估'],
+      rating: 4.7,
+      reviewCount: 89,
+      tags: ['术后专用', '科学康复', '专家跟踪']
+    }
+  ];
+
   const dietPlans: DietPlan[] = [
     {
       id: 'plan-1',
@@ -4640,6 +4866,243 @@ const App: React.FC = () => {
     );
   };
 
+  // 营养师咨询界面
+  const NutritionistView = () => {
+    const [activeNutritionistTab, setActiveNutritionistTab] = useState<'consultations' | 'premium_plans'>('consultations');
+    
+    return (
+      <div className="pb-20 p-6 space-y-6">
+        {/* 页面标题 */}
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">专业营养师服务</h1>
+          <p className="text-gray-600">获得专业营养师的一对一指导，让健康饮食更科学</p>
+        </div>
+
+        {/* 服务类型切换 */}
+        <div className="flex bg-gray-100 rounded-xl p-1">
+          <button
+            onClick={() => setActiveNutritionistTab('consultations')}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
+              activeNutritionistTab === 'consultations'
+                ? 'bg-white text-green-600 shadow-sm'
+                : 'text-gray-600'
+            }`}
+          >
+            在线咨询
+          </button>
+          <button
+            onClick={() => setActiveNutritionistTab('premium_plans')}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
+              activeNutritionistTab === 'premium_plans'
+                ? 'bg-white text-green-600 shadow-sm'
+                : 'text-gray-600'
+            }`}
+          >
+            高级计划
+          </button>
+        </div>
+
+        {/* 在线咨询部分 */}
+        {activeNutritionistTab === 'consultations' && (
+          <div className="space-y-6">
+            {/* 服务特色介绍 */}
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-xl">
+              <h3 className="text-xl font-bold text-gray-800 mb-3">专业营养师一对一咨询</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="text-green-500" size={20} />
+                  <span className="text-gray-700">资质认证</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Video className="text-blue-500" size={20} />
+                  <span className="text-gray-700">视频咨询</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <MessageSquare className="text-purple-500" size={20} />
+                  <span className="text-gray-700">实时沟通</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Clock className="text-orange-500" size={20} />
+                  <span className="text-gray-700">灵活预约</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 营养师列表 */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-gray-800">精选营养师</h3>
+              {nutritionists.map((nutritionist) => (
+                <div key={nutritionist.id} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                  <div className="flex items-start space-x-4">
+                    <img 
+                      src={nutritionist.avatar} 
+                      alt={nutritionist.name}
+                      className="w-16 h-16 rounded-full object-cover"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <h4 className="text-lg font-bold text-gray-800">{nutritionist.name}</h4>
+                        <div className="flex items-center space-x-1">
+                          <Star className="text-yellow-400 fill-current" size={16} />
+                          <span className="text-sm text-gray-600">{nutritionist.rating}</span>
+                          <span className="text-sm text-gray-400">({nutritionist.reviewCount}评价)</span>
+                        </div>
+                      </div>
+                      
+                      <p className="text-sm text-gray-600 mb-2">{nutritionist.title}</p>
+                      
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Badge className="text-blue-500" size={14} />
+                        <span className="text-sm text-gray-600">{nutritionist.experience}年经验</span>
+                        <MapPin className="text-gray-400" size={14} />
+                        <span className="text-sm text-gray-600">{nutritionist.location}</span>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {nutritionist.specialties.slice(0, 3).map((specialty, index) => (
+                          <span key={index} className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                            {specialty}
+                          </span>
+                        ))}
+                      </div>
+                      
+                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{nutritionist.bio}</p>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm">
+                          <span className="text-2xl font-bold text-green-600">¥{nutritionist.consultationPrice}</span>
+                          <span className="text-gray-600">/次</span>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <div className="text-right">
+                            <div className={`text-xs ${nutritionist.available ? 'text-green-600' : 'text-orange-600'}`}>
+                              {nutritionist.available ? '可预约' : '暂不可约'}
+                            </div>
+                            {nutritionist.nextAvailableTime && (
+                              <div className="text-xs text-gray-500">{nutritionist.nextAvailableTime}</div>
+                            )}
+                          </div>
+                          
+                          <button
+                            onClick={() => {
+                              setSelectedNutritionist(nutritionist);
+                              setShowNutritionistDetail(true);
+                            }}
+                            className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors"
+                          >
+                            查看详情
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 高级计划部分 */}
+        {activeNutritionistTab === 'premium_plans' && (
+          <div className="space-y-6">
+            {/* 计划特色介绍 */}
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl">
+              <h3 className="text-xl font-bold text-gray-800 mb-3">特定人群定制化营养计划</h3>
+              <p className="text-gray-700 mb-4">针对孕妇、糖尿病患者、术后康复等特殊人群，提供专业的长期营养指导方案</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center space-x-2">
+                  <GraduationCap className="text-purple-500" size={20} />
+                  <span className="text-gray-700">专家制定</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Target className="text-blue-500" size={20} />
+                  <span className="text-gray-700">针对性强</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 高级计划列表 */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-gray-800">精选高级计划</h3>
+              {premiumMealPlans.map((plan) => (
+                <div key={plan.id} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 relative">
+                  {plan.isPopular && (
+                    <div className="absolute top-4 right-4">
+                      <span className="bg-gradient-to-r from-orange-400 to-red-400 text-white px-3 py-1 rounded-full text-xs font-medium">
+                        热门
+                      </span>
+                    </div>
+                  )}
+                  
+                  <div className="flex space-x-4">
+                    <img 
+                      src={plan.image} 
+                      alt={plan.title}
+                      className="w-20 h-20 rounded-xl object-cover"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <h4 className="text-lg font-bold text-gray-800">{plan.title}</h4>
+                        <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                          {plan.targetGroupLabel}
+                        </span>
+                      </div>
+                      
+                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{plan.description}</p>
+                      
+                      <div className="flex items-center space-x-4 mb-3">
+                        <div className="flex items-center space-x-1">
+                          <Star className="text-yellow-400 fill-current" size={16} />
+                          <span className="text-sm text-gray-600">{plan.rating}</span>
+                          <span className="text-sm text-gray-400">({plan.reviewCount})</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Clock className="text-gray-400" size={16} />
+                          <span className="text-sm text-gray-600">{plan.duration}天</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {plan.tags.map((tag, index) => (
+                          <span key={index} className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-2xl font-bold text-purple-600">¥{plan.price}</span>
+                            <span className="text-lg text-gray-400 line-through">¥{plan.originalPrice}</span>
+                            <span className="px-2 py-1 bg-red-100 text-red-600 text-xs rounded-full">
+                              {plan.discount}%OFF
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <button
+                          onClick={() => {
+                            setSelectedPremiumPlan(plan);
+                            setShowPremiumPlanDetail(true);
+                          }}
+                          className="px-4 py-2 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600 transition-colors"
+                        >
+                          查看详情
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const ProfileView = () => (
     <div className="pb-20 p-6">
       <div className="text-center mb-8">
@@ -5247,6 +5710,7 @@ const App: React.FC = () => {
     { id: 'home', name: '首页', icon: Home },
     { id: 'recipes', name: '菜谱', icon: BookOpen },
     { id: 'store', name: '商城', icon: ShoppingCart },
+    { id: 'nutritionist', name: '营养师', icon: Stethoscope },
     { id: 'gamification', name: '成就', icon: Award },
     { id: 'community', name: '社区', icon: Users },
     { id: 'profile', name: '我的', icon: User }
@@ -5258,6 +5722,7 @@ const App: React.FC = () => {
       {activeTab === 'home' && <HomeView />}
       {activeTab === 'recipes' && <RecipesView />}
       {activeTab === 'store' && <StoreView />}
+      {activeTab === 'nutritionist' && <NutritionistView />}
       {activeTab === 'gamification' && <GamificationView />}
       {activeTab === 'community' && <CommunityView />}
       {activeTab === 'profile' && <ProfileView />}
@@ -5296,8 +5761,664 @@ const App: React.FC = () => {
       {showHealthProfile && <HealthProfileView />}
       {showPurchaseModal && selectedDietPlan && <PurchaseModal plan={selectedDietPlan} />}
       {showFoodCorrectionModal && <FoodCorrectionModal />}
+      {showNutritionistDetail && selectedNutritionist && (
+        <NutritionistDetailModal 
+          nutritionist={selectedNutritionist} 
+          onClose={() => {
+            setShowNutritionistDetail(false);
+            setSelectedNutritionist(null);
+          }}
+        />
+      )}
+      {showBookingModal && selectedNutritionist && (
+        <BookingModal 
+          nutritionist={selectedNutritionist} 
+          onClose={() => setShowBookingModal(false)}
+        />
+      )}
+      {showConsultationChat && currentConsultation && (
+        <ConsultationChatModal 
+          consultation={currentConsultation} 
+          onClose={() => setShowConsultationChat(false)}
+        />
+      )}
+      {showPremiumPlanDetail && selectedPremiumPlan && (
+        <PremiumPlanDetailModal 
+          plan={selectedPremiumPlan} 
+          onClose={() => setShowPremiumPlanDetail(false)}
+        />
+      )}
     </div>
-  );
-};
+    );
+  };
+
+  // 营养师详情弹窗
+  const NutritionistDetailModal = ({ nutritionist, onClose }: { nutritionist: Nutritionist; onClose: () => void }) => {
+    return (
+      <div 
+        className="fixed inset-0 bg-black/50 z-50 flex items-end"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            onClose();
+          }
+        }}
+      >
+        <div className="bg-white w-full rounded-t-3xl max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            {/* 头部信息 */}
+            <div className="flex justify-between items-start mb-6">
+              <div className="flex items-center space-x-4">
+                <img 
+                  src={nutritionist.avatar} 
+                  alt={nutritionist.name}
+                  className="w-20 h-20 rounded-full object-cover"
+                />
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-800">{nutritionist.name}</h2>
+                  <p className="text-gray-600">{nutritionist.title}</p>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <div className="flex items-center space-x-1">
+                      <Star className="text-yellow-400 fill-current" size={16} />
+                      <span className="text-sm font-medium">{nutritionist.rating}</span>
+                      <span className="text-sm text-gray-500">({nutritionist.reviewCount}评价)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors z-10 relative"
+              >
+                <XCircle size={24} className="text-gray-400 hover:text-gray-600" />
+              </button>
+            </div>
+
+            {/* 专业信息 */}
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-bold mb-3">专业背景</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <GraduationCap className="text-blue-500" size={16} />
+                    <span className="text-gray-700">{nutritionist.education}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Badge className="text-green-500" size={16} />
+                    <span className="text-gray-700">{nutritionist.experience}年专业经验</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <MapPin className="text-purple-500" size={16} />
+                    <span className="text-gray-700">{nutritionist.location}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold mb-3">认证资质</h3>
+                <div className="flex flex-wrap gap-2">
+                  {nutritionist.certifications.map((cert, index) => (
+                    <span key={index} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
+                      {cert}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold mb-3">专业领域</h3>
+                <div className="flex flex-wrap gap-2">
+                  {nutritionist.specialties.map((specialty, index) => (
+                    <span key={index} className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
+                      {specialty}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold mb-3">个人简介</h3>
+                <p className="text-gray-700 leading-relaxed">{nutritionist.bio}</p>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold mb-3">语言能力</h3>
+                <div className="flex space-x-2">
+                  {nutritionist.languages.map((lang, index) => (
+                    <span key={index} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                      {lang}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* 预约信息 */}
+              <div className="bg-green-50 p-4 rounded-xl">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-bold text-green-800">咨询预约</h3>
+                  <span className="text-2xl font-bold text-green-600">¥{nutritionist.consultationPrice}</span>
+                </div>
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center space-x-2">
+                    <Clock className="text-green-600" size={16} />
+                    <span className="text-green-700">45分钟专业咨询</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Video className="text-green-600" size={16} />
+                    <span className="text-green-700">支持视频/语音通话</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <MessageSquare className="text-green-600" size={16} />
+                    <span className="text-green-700">7天内免费追问</span>
+                  </div>
+                </div>
+                
+                <div className="text-center">
+                  {nutritionist.available ? (
+                    <div className="space-y-2">
+                      <p className="text-green-700 text-sm">最近可约时间：{nutritionist.nextAvailableTime}</p>
+                      <button
+                        onClick={onClose}
+                        className="w-full py-3 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition-colors"
+                      >
+                        立即预约咨询
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-orange-600 text-sm">暂时无法预约，最近可约：{nutritionist.nextAvailableTime}</p>
+                      <button
+                        onClick={onClose}
+                        className="w-full py-3 bg-gray-400 text-white rounded-xl font-medium hover:bg-gray-500 transition-colors"
+                      >
+                        暂时无法预约
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // 预约弹窗
+  const BookingModal = ({ nutritionist, onClose }: { nutritionist: Nutritionist; onClose: () => void }) => {
+    const [selectedDate, setSelectedDate] = useState('');
+    const [selectedTime, setSelectedTime] = useState('');
+    const [consultationType, setConsultationType] = useState<'video' | 'voice' | 'chat'>('video');
+    const [consultationNote, setConsultationNote] = useState('');
+
+    const availableDates = [
+      { date: '2024-01-15', label: '今天' },
+      { date: '2024-01-16', label: '明天' },
+      { date: '2024-01-17', label: '后天' },
+      { date: '2024-01-18', label: '1月18日' },
+    ];
+
+    const availableTimes = [
+      '09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '19:00', '20:00'
+    ];
+
+    const handleBooking = () => {
+      // 处理预约逻辑
+      alert('预约成功！我们将在24小时内确认您的预约。');
+      onClose();
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
+        <div className="bg-white w-full rounded-t-3xl max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">预约咨询</h2>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <XCircle size={24} className="text-gray-400" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* 营养师信息 */}
+              <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-xl">
+                <img 
+                  src={nutritionist.avatar} 
+                  alt={nutritionist.name}
+                  className="w-12 h-12 rounded-full object-cover"
+                />
+                <div>
+                  <h3 className="font-bold">{nutritionist.name}</h3>
+                  <p className="text-sm text-gray-600">{nutritionist.title}</p>
+                </div>
+              </div>
+
+              {/* 选择日期 */}
+              <div>
+                <h3 className="text-lg font-bold mb-3">选择日期</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {availableDates.map((date) => (
+                    <button
+                      key={date.date}
+                      onClick={() => setSelectedDate(date.date)}
+                      className={`p-3 rounded-xl border transition-all ${
+                        selectedDate === date.date
+                          ? 'border-green-500 bg-green-50 text-green-700'
+                          : 'border-gray-200 hover:border-green-300'
+                      }`}
+                    >
+                      {date.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 选择时间 */}
+              <div>
+                <h3 className="text-lg font-bold mb-3">选择时间</h3>
+                <div className="grid grid-cols-4 gap-2">
+                  {availableTimes.map((time) => (
+                    <button
+                      key={time}
+                      onClick={() => setSelectedTime(time)}
+                      className={`p-2 rounded-lg border text-sm transition-all ${
+                        selectedTime === time
+                          ? 'border-green-500 bg-green-50 text-green-700'
+                          : 'border-gray-200 hover:border-green-300'
+                      }`}
+                    >
+                      {time}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 咨询方式 */}
+              <div>
+                <h3 className="text-lg font-bold mb-3">咨询方式</h3>
+                <div className="space-y-2">
+                  {[
+                    { type: 'video' as const, label: '视频通话', icon: Video, desc: '面对面交流，效果最佳' },
+                    { type: 'voice' as const, label: '语音通话', icon: Phone, desc: '语音沟通，方便快捷' },
+                    { type: 'chat' as const, label: '文字咨询', icon: MessageSquare, desc: '文字交流，随时回看' }
+                  ].map((option) => (
+                    <button
+                      key={option.type}
+                      onClick={() => setConsultationType(option.type)}
+                      className={`w-full p-4 rounded-xl border transition-all flex items-center space-x-3 ${
+                        consultationType === option.type
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-gray-200 hover:border-green-300'
+                      }`}
+                    >
+                      <option.icon 
+                        size={20} 
+                        className={consultationType === option.type ? 'text-green-600' : 'text-gray-400'} 
+                      />
+                      <div className="text-left">
+                        <div className={`font-medium ${consultationType === option.type ? 'text-green-700' : 'text-gray-700'}`}>
+                          {option.label}
+                        </div>
+                        <div className="text-sm text-gray-500">{option.desc}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 咨询说明 */}
+              <div>
+                <h3 className="text-lg font-bold mb-3">咨询说明</h3>
+                <textarea
+                  value={consultationNote}
+                  onChange={(e) => setConsultationNote(e.target.value)}
+                  placeholder="请简单描述您的健康状况、饮食习惯或想要咨询的问题，帮助营养师更好地为您服务"
+                  className="w-full p-3 border border-gray-200 rounded-xl resize-none h-24"
+                />
+              </div>
+
+              {/* 费用信息 */}
+              <div className="bg-blue-50 p-4 rounded-xl">
+                <div className="flex justify-between items-center">
+                  <span className="text-blue-700 font-medium">咨询费用</span>
+                  <span className="text-2xl font-bold text-blue-600">¥{nutritionist.consultationPrice}</span>
+                </div>
+                <p className="text-sm text-blue-600 mt-1">包含45分钟专业咨询 + 7天内免费追问</p>
+              </div>
+
+              {/* 预约按钮 */}
+              <button
+                onClick={handleBooking}
+                disabled={!selectedDate || !selectedTime}
+                className={`w-full py-4 rounded-xl font-medium transition-all ${
+                  selectedDate && selectedTime
+                    ? 'bg-green-500 text-white hover:bg-green-600'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                确认预约 (¥{nutritionist.consultationPrice})
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // 咨询聊天弹窗
+  const ConsultationChatModal = ({ consultation, onClose }: { consultation: ConsultationSession; onClose: () => void }) => {
+    const [message, setMessage] = useState('');
+    const [messages, setMessages] = useState<ConsultationMessage[]>([
+      {
+        id: '1',
+        senderId: consultation.nutritionist.id,
+        senderType: 'nutritionist',
+        content: '您好！我是' + consultation.nutritionist.name + '，很高兴为您提供营养咨询服务。请告诉我您的具体情况。',
+        timestamp: '2024-01-15 14:00:00',
+        type: 'text'
+      }
+    ]);
+
+    const sendMessage = () => {
+      if (!message.trim()) return;
+      
+      const newMessage: ConsultationMessage = {
+        id: Date.now().toString(),
+        senderId: 'user',
+        senderType: 'user',
+        content: message,
+        timestamp: new Date().toISOString(),
+        type: 'text'
+      };
+      
+      setMessages([...messages, newMessage]);
+      setMessage('');
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
+        <div className="bg-white w-full rounded-t-3xl h-[90vh] flex flex-col">
+          {/* 头部 */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-200">
+            <div className="flex items-center space-x-3">
+              <img 
+                src={consultation.nutritionist.avatar} 
+                alt={consultation.nutritionist.name}
+                className="w-10 h-10 rounded-full object-cover"
+              />
+              <div>
+                <h3 className="font-bold">{consultation.nutritionist.name}</h3>
+                <p className="text-sm text-green-600">在线咨询中</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-full"
+            >
+              <XCircle size={20} className="text-gray-400" />
+            </button>
+          </div>
+
+          {/* 消息列表 */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex ${msg.senderType === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[80%] p-3 rounded-2xl ${
+                    msg.senderType === 'user'
+                      ? 'bg-green-500 text-white'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}
+                >
+                  <p>{msg.content}</p>
+                  <p className={`text-xs mt-1 ${
+                    msg.senderType === 'user' ? 'text-green-100' : 'text-gray-500'
+                  }`}>
+                    {new Date(msg.timestamp).toLocaleTimeString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 输入框 */}
+          <div className="p-4 border-t border-gray-200">
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                placeholder="输入您的问题..."
+                className="flex-1 p-3 border border-gray-200 rounded-xl"
+              />
+              <button
+                onClick={sendMessage}
+                className="px-6 py-3 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition-colors"
+              >
+                发送
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // 高级计划详情弹窗
+  const PremiumPlanDetailModal = ({ plan, onClose }: { plan: PremiumMealPlan; onClose: () => void }) => {
+    const [activeTab, setActiveTab] = useState<'overview' | 'meals' | 'nutritionist'>('overview');
+
+    const handlePurchase = () => {
+      alert(`成功购买${plan.title}！您可以在"我的"页面查看计划详情。`);
+      onClose();
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
+        <div className="bg-white w-full rounded-t-3xl max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            {/* 头部 */}
+            <div className="flex justify-between items-start mb-6">
+              <div className="flex-1">
+                <div className="flex items-center space-x-2 mb-2">
+                  <h2 className="text-2xl font-bold text-gray-800">{plan.title}</h2>
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                    {plan.targetGroupLabel}
+                  </span>
+                </div>
+                <p className="text-gray-600 mb-3">{plan.description}</p>
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-1">
+                    <Star className="text-yellow-400 fill-current" size={16} />
+                    <span className="font-medium">{plan.rating}</span>
+                    <span className="text-gray-500">({plan.reviewCount})</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Clock className="text-gray-400" size={16} />
+                    <span className="text-gray-600">{plan.duration}天</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <XCircle size={24} className="text-gray-400" />
+              </button>
+            </div>
+
+            {/* 标签切换 */}
+            <div className="flex bg-gray-100 rounded-xl p-1 mb-6">
+              {[
+                { id: 'overview', label: '计划概览' },
+                { id: 'meals', label: '示例食谱' },
+                { id: 'nutritionist', label: '专家介绍' }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-white text-purple-600 shadow-sm'
+                      : 'text-gray-600'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* 内容区域 */}
+            <div className="space-y-6">
+              {activeTab === 'overview' && (
+                <div className="space-y-6">
+                  <img 
+                    src={plan.image} 
+                    alt={plan.title}
+                    className="w-full h-48 object-cover rounded-xl"
+                  />
+                  
+                  <div>
+                    <h3 className="text-lg font-bold mb-3">计划特色</h3>
+                    <div className="grid grid-cols-1 gap-2">
+                      {plan.features.map((feature, index) => (
+                        <div key={index} className="flex items-center space-x-2">
+                          <CheckCircle className="text-green-500" size={16} />
+                          <span className="text-gray-700">{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-bold mb-3">包含内容</h3>
+                    <div className="space-y-2">
+                      {plan.included.map((item, index) => (
+                        <div key={index} className="flex items-center space-x-2">
+                          <Check className="text-purple-500" size={16} />
+                          <span className="text-gray-700">{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-bold mb-3">预期效果</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {plan.benefits.map((benefit, index) => (
+                        <div key={index} className="flex items-center space-x-2">
+                          <Target className="text-blue-500" size={16} />
+                          <span className="text-gray-700">{benefit}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {plan.contraindications && (
+                    <div className="bg-yellow-50 p-4 rounded-xl">
+                      <h3 className="text-lg font-bold mb-2 text-yellow-800">注意事项</h3>
+                      <div className="space-y-1">
+                        {plan.contraindications.map((item, index) => (
+                          <p key={index} className="text-yellow-700 text-sm">• {item}</p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'meals' && (
+                <div className="space-y-6">
+                  {Object.entries(plan.sampleMeals).map(([mealType, meals]) => (
+                    <div key={mealType}>
+                      <h3 className="text-lg font-bold mb-3 capitalize">
+                        {mealType === 'breakfast' ? '早餐' : 
+                         mealType === 'lunch' ? '午餐' : 
+                         mealType === 'dinner' ? '晚餐' : '加餐'}
+                      </h3>
+                      <div className="space-y-2">
+                        {meals.map((meal, index) => (
+                          <div key={index} className="flex items-center space-x-2 p-3 bg-gray-50 rounded-xl">
+                            <Utensils className="text-purple-500" size={16} />
+                            <span className="text-gray-700">{meal}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeTab === 'nutritionist' && (
+                <div className="space-y-6">
+                  <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-xl">
+                    <img 
+                      src={plan.nutritionist.avatar} 
+                      alt={plan.nutritionist.name}
+                      className="w-16 h-16 rounded-full object-cover"
+                    />
+                    <div>
+                      <h3 className="text-lg font-bold">{plan.nutritionist.name}</h3>
+                      <p className="text-gray-600">{plan.nutritionist.title}</p>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <Star className="text-yellow-400 fill-current" size={16} />
+                        <span className="text-sm">{plan.nutritionist.rating}</span>
+                        <span className="text-sm text-gray-500">({plan.nutritionist.reviewCount}评价)</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-bold mb-3">专业背景</h3>
+                    <p className="text-gray-700 leading-relaxed">{plan.nutritionist.bio}</p>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-bold mb-3">专业领域</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {plan.nutritionist.specialties.map((specialty, index) => (
+                        <span key={index} className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
+                          {specialty}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 购买区域 */}
+            <div className="mt-8 p-4 bg-purple-50 rounded-xl">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-3xl font-bold text-purple-600">¥{plan.price}</span>
+                    <span className="text-xl text-gray-400 line-through">¥{plan.originalPrice}</span>
+                    <span className="px-2 py-1 bg-red-100 text-red-600 text-sm rounded-full">
+                      {plan.discount}%OFF
+                    </span>
+                  </div>
+                  <p className="text-sm text-purple-600 mt-1">{plan.duration}天专业营养指导</p>
+                </div>
+              </div>
+              
+              <button
+                onClick={handlePurchase}
+                className="w-full py-4 bg-purple-500 text-white rounded-xl font-medium hover:bg-purple-600 transition-colors"
+              >
+                立即购买
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
 export default App;
