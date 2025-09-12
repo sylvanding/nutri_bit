@@ -10,5 +10,13 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 8892,
+    // for remote development
+    // hmr: {
+    //   host: '192.168.1.3', // WSL 的 IP 地址
+    // },
+    // // 解决 WSL2 文件系统监听问题
+    // watch: {
+    //   usePolling: true,
+    // }
   }
 });
