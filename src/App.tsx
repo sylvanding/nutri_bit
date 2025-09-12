@@ -68,6 +68,11 @@ interface Recipe {
   readyMealPrice: number;
   category: string[];
   tags: string[];
+  cuisineType?: string; // 菜系类型
+  isNew?: boolean; // 是否为新菜品
+  popularity?: number; // 受欢迎程度 (0-1)
+  seasonality?: string[]; // 季节性 ['spring', 'summer', 'autumn', 'winter']
+  mealTime?: ('breakfast' | 'lunch' | 'dinner' | 'snack')[]; // 适合的用餐时间
 }
 
 interface CommonFood {
@@ -1445,8 +1450,11 @@ const App: React.FC = () => {
     }
   ]);
 
-  // 菜谱数据
-  const recipes: Recipe[] = [
+  // 导入扩展菜谱数据和推荐算法
+  const { extendedRecipes, defaultUserPreferences, defaultUserHistory } = (() => {
+    try {
+      // 静态导入扩展菜谱数据
+      const extendedRecipes = [
     {
       id: 'recipe-1',
       name: '蒜蓉西兰花炒虾仁',
@@ -1467,41 +1475,21 @@ const App: React.FC = () => {
         { name: '淀粉', amount: '1小勺', category: 'seasoning' }
       ],
       steps: [
-        {
-          stepNumber: 1,
-          description: '虾仁洗净去虾线，用料酒和淀粉腌制10分钟',
-          time: 10
-        },
-        {
-          stepNumber: 2,
-          description: '西兰花洗净切成小朵，大蒜切片',
-          time: 3
-        },
-        {
-          stepNumber: 3,
-          description: '锅中烧水，加少许盐，西兰花焯水1分钟后捞出',
-          time: 2
-        },
-        {
-          stepNumber: 4,
-          description: '热锅下油，下蒜片爆香，再下虾仁炒至变色',
-          time: 3
-        },
-        {
-          stepNumber: 5,
-          description: '加入西兰花翻炒，调味即可出锅',
-          time: 2
-        }
-      ],
-      tips: [
-        '虾仁要提前腌制，口感更嫩滑',
-        '西兰花焯水时间不宜过长，保持脆嫩',
-        '可加少许蚝油提鲜'
-      ],
+            { stepNumber: 1, description: '虾仁洗净去虾线，用料酒和淀粉腌制10分钟', time: 10 },
+            { stepNumber: 2, description: '西兰花洗净切成小朵，大蒜切片', time: 3 },
+            { stepNumber: 3, description: '锅中烧水，加少许盐，西兰花焯水1分钟后捞出', time: 2 },
+            { stepNumber: 4, description: '热锅下油，下蒜片爆香，再下虾仁炒至变色', time: 3 },
+            { stepNumber: 5, description: '加入西兰花翻炒，调味即可出锅', time: 2 }
+          ],
+          tips: ['虾仁要提前腌制，口感更嫩滑', '西兰花焯水时间不宜过长，保持脆嫩', '可加少许蚝油提鲜'],
       kitPrice: 28,
       readyMealPrice: 36,
       category: ['晚餐', '减脂'],
-      tags: ['高蛋白', '低脂', '快手菜']
+          tags: ['高蛋白', '低脂', '快手菜'],
+          cuisineType: '中式',
+          popularity: 0.9,
+          seasonality: ['spring', 'summer', 'autumn', 'winter'],
+          mealTime: ['lunch', 'dinner']
     },
     {
       id: 'recipe-2',
@@ -1524,38 +1512,198 @@ const App: React.FC = () => {
         { name: '盐', amount: '适量', category: 'seasoning' }
       ],
       steps: [
-        {
-          stepNumber: 1,
-          description: '鸡胸肉用盐和黑胡椒腌制，煎至两面金黄，切片',
-          time: 8
+            { stepNumber: 1, description: '鸡胸肉用盐和黑胡椒腌制，煎至两面金黄，切片', time: 8 },
+            { stepNumber: 2, description: '各种蔬菜洗净切好，摆盘', time: 5 },
+            { stepNumber: 3, description: '调制沙拉汁：橄榄油、柠檬汁、盐、胡椒混合', time: 2 },
+            { stepNumber: 4, description: '将鸡胸肉片放在蔬菜上，淋上沙拉汁即可', time: 1 }
+          ],
+          tips: ['鸡胸肉不要煎过头，保持嫩滑', '蔬菜尽量选择不同颜色，营养更丰富', '沙拉汁可以根据个人喜好调整'],
+          kitPrice: 24,
+          readyMealPrice: 32,
+          category: ['午餐', '减脂'],
+          tags: ['低卡', '高蛋白', '轻食'],
+          cuisineType: '西式',
+          popularity: 0.85,
+          seasonality: ['spring', 'summer', 'autumn'],
+          mealTime: ['lunch', 'dinner']
         },
         {
-          stepNumber: 2,
-          description: '各种蔬菜洗净切好，摆盘',
-          time: 5
+          id: 'recipe-3',
+          name: '香煎三文鱼配牛油果',
+          image: 'https://images.pexels.com/photos/3026808/pexels-photo-3026808.jpeg?auto=compress&cs=tinysrgb&w=400',
+          description: 'Omega-3丰富，增肌减脂两相宜',
+          cookTime: 12,
+          rating: 4.9,
+          nutrition: { calories: 520, protein: 32, carbs: 8, fat: 28, sodium: 220, fiber: 7 },
+          difficulty: 'medium',
+          ingredients: [
+            { name: '三文鱼', amount: '180g', category: 'main' },
+            { name: '牛油果', amount: '1个', category: 'main' },
+            { name: '柠檬', amount: '半个', category: 'seasoning' },
+            { name: '橄榄油', amount: '1勺', category: 'seasoning' },
+            { name: '海盐', amount: '适量', category: 'seasoning' },
+            { name: '黑胡椒', amount: '适量', category: 'seasoning' },
+            { name: '迷迭香', amount: '2枝', category: 'seasoning' }
+          ],
+          steps: [
+            { stepNumber: 1, description: '三文鱼用盐和胡椒腌制15分钟', time: 15 },
+            { stepNumber: 2, description: '牛油果切片，淋上柠檬汁防氧化', time: 3 },
+            { stepNumber: 3, description: '平底锅刷油，煎三文鱼3-4分钟至表面金黄', time: 4 },
+            { stepNumber: 4, description: '翻面再煎2分钟，加入迷迭香提香', time: 2 },
+            { stepNumber: 5, description: '摆盘配牛油果，挤柠檬汁即可', time: 2 }
+          ],
+          tips: ['三文鱼不要煎过头，保持内部粉嫩', '牛油果要选择适度成熟的', '可配简单沙拉增加饱腹感'],
+          kitPrice: 42,
+          readyMealPrice: 55,
+          category: ['晚餐', '增肌'],
+          tags: ['高蛋白', '健康脂肪', '轻奢'],
+          cuisineType: '西式',
+          isNew: true,
+          popularity: 0.92,
+          seasonality: ['spring', 'summer', 'autumn', 'winter'],
+          mealTime: ['lunch', 'dinner']
         },
         {
-          stepNumber: 3,
-          description: '调制沙拉汁：橄榄油、柠檬汁、盐、胡椒混合',
-          time: 2
+          id: 'recipe-4',
+          name: '日式照烧鸡腿',
+          image: 'https://images.pexels.com/photos/1640773/pexels-photo-1640773.jpeg?auto=compress&cs=tinysrgb&w=400',
+          description: '甜咸平衡，下饭神器',
+          cookTime: 25,
+          rating: 4.8,
+          nutrition: { calories: 580, protein: 38, carbs: 25, fat: 22, sodium: 680, fiber: 2 },
+          difficulty: 'medium',
+          ingredients: [
+            { name: '鸡腿', amount: '2个', category: 'main' },
+            { name: '生抽', amount: '3勺', category: 'seasoning' },
+            { name: '老抽', amount: '1勺', category: 'seasoning' },
+            { name: '味淋', amount: '2勺', category: 'seasoning' },
+            { name: '清酒', amount: '1勺', category: 'seasoning' },
+            { name: '蜂蜜', amount: '1勺', category: 'seasoning' },
+            { name: '姜片', amount: '3片', category: 'seasoning' },
+            { name: '白芝麻', amount: '适量', category: 'garnish' }
+          ],
+          steps: [
+            { stepNumber: 1, description: '鸡腿洗净，用刀在皮上划几刀', time: 3 },
+            { stepNumber: 2, description: '调制照烧汁：生抽、老抽、味淋、清酒、蜂蜜混合', time: 2 },
+            { stepNumber: 3, description: '平底锅刷油，鸡腿皮朝下煎5分钟至金黄', time: 5 },
+            { stepNumber: 4, description: '翻面再煎3分钟，倒入照烧汁', time: 3 },
+            { stepNumber: 5, description: '小火煮10分钟，收汁至浓稠', time: 10 },
+            { stepNumber: 6, description: '撒白芝麻，切块装盘', time: 2 }
+          ],
+          tips: ['鸡皮一定要煎得焦黄，才香', '收汁时要不断翻动，避免糊底', '可配白米饭或蔬菜沙拉'],
+          kitPrice: 18,
+          readyMealPrice: 28,
+          category: ['午餐', '晚餐'],
+          tags: ['下饭', '香甜', '经典'],
+          cuisineType: '日式',
+          popularity: 0.91,
+          seasonality: ['autumn', 'winter'],
+          mealTime: ['lunch', 'dinner']
         },
         {
-          stepNumber: 4,
-          description: '将鸡胸肉片放在蔬菜上，淋上沙拉汁即可',
-          time: 1
+          id: 'recipe-5',
+          name: '藜麦牛油果碗',
+          image: 'https://images.pexels.com/photos/1640776/pexels-photo-1640776.jpeg?auto=compress&cs=tinysrgb&w=400',
+          description: '超级食物组合，营养密度超高',
+          cookTime: 20,
+          rating: 4.5,
+          nutrition: { calories: 420, protein: 18, carbs: 35, fat: 16, sodium: 180, fiber: 12 },
+          difficulty: 'easy',
+          ingredients: [
+            { name: '藜麦', amount: '100g', category: 'main' },
+            { name: '牛油果', amount: '1个', category: 'main' },
+            { name: '樱桃番茄', amount: '150g', category: 'main' },
+            { name: '胡萝卜丝', amount: '50g', category: 'main' },
+            { name: '紫甘蓝丝', amount: '50g', category: 'main' },
+            { name: '芝麻菜', amount: '30g', category: 'main' },
+            { name: '南瓜籽', amount: '20g', category: 'garnish' },
+            { name: '柠檬汁', amount: '2勺', category: 'seasoning' },
+            { name: '橄榄油', amount: '1勺', category: 'seasoning' },
+            { name: '海盐', amount: '适量', category: 'seasoning' }
+          ],
+          steps: [
+            { stepNumber: 1, description: '藜麦洗净，加水煮15分钟至软烂', time: 15 },
+            { stepNumber: 2, description: '各种蔬菜洗净切好备用', time: 5 },
+            { stepNumber: 3, description: '牛油果切块，淋柠檬汁', time: 2 },
+            { stepNumber: 4, description: '所有食材摆入碗中，淋橄榄油和柠檬汁', time: 3 },
+            { stepNumber: 5, description: '撒南瓜籽和海盐，轻拌即可', time: 1 }
+          ],
+          tips: ['藜麦要充分洗净去苦味', '可加煮蛋增加蛋白质', '调料可根据喜好调整'],
+          kitPrice: 32,
+          readyMealPrice: 38,
+          category: ['午餐', '轻食'],
+          tags: ['超级食物', '素食', '高纤维'],
+          cuisineType: '西式',
+          isNew: true,
+          popularity: 0.78,
+          seasonality: ['spring', 'summer'],
+          mealTime: ['breakfast', 'lunch']
         }
-      ],
-      tips: [
-        '鸡胸肉不要煎过头，保持嫩滑',
-        '蔬菜尽量选择不同颜色，营养更丰富',
-        '沙拉汁可以根据个人喜好调整'
-      ],
-      kitPrice: 24,
-      readyMealPrice: 32,
-      category: ['午餐', '减脂'],
-      tags: ['低卡', '高蛋白', '轻食']
+      ];
+
+      const defaultUserPreferences = {
+        cuisineTypes: ['中式', '西式'],
+        difficulty: ['easy', 'medium'] as ('easy' | 'medium' | 'hard')[],
+        cookTime: 30,
+        dietaryRestrictions: [] as string[],
+        favoriteIngredients: ['鸡胸肉', '虾仁', '鸡蛋', '西兰花'],
+        dislikedIngredients: ['香菜', '芹菜'],
+        favoriteCategories: ['减脂', '快手菜'],
+        nutritionFocus: ['high_protein', 'low_fat'] as ('high_protein' | 'low_fat' | 'low_carb' | 'high_fiber')[]
+      };
+
+      const defaultUserHistory = {
+        recentRecipes: ['recipe-1', 'recipe-2'],
+        ratedRecipes: { 'recipe-1': 5, 'recipe-2': 4 } as { [recipeId: string]: number },
+        frequentCategories: { '减脂': 5, '快手菜': 3, '高蛋白': 4 } as { [category: string]: number },
+        nutritionGoals: {
+          dailyCalories: 1800,
+          proteinTarget: 120,
+          carbsTarget: 180,
+          fatTarget: 60
+        },
+        healthProfile: {
+          healthGoal: 'weight_loss' as 'weight_loss' | 'muscle_gain' | 'maintain_health' | 'special_nutrition',
+          activityLevel: 'moderate' as 'light' | 'moderate' | 'heavy'
+        }
+      };
+
+      return { extendedRecipes, defaultUserPreferences, defaultUserHistory };
+    } catch (error) {
+      console.error('Failed to load recipe data:', error);
+      return { 
+        extendedRecipes: [] as Recipe[],
+        defaultUserPreferences: {
+          cuisineTypes: [],
+          difficulty: [] as ('easy' | 'medium' | 'hard')[],
+          cookTime: 30,
+          dietaryRestrictions: [],
+          favoriteIngredients: [],
+          dislikedIngredients: [],
+          favoriteCategories: [],
+          nutritionFocus: [] as ('high_protein' | 'low_fat' | 'low_carb' | 'high_fiber')[]
+        },
+        defaultUserHistory: {
+          recentRecipes: [],
+          ratedRecipes: {} as { [recipeId: string]: number },
+          frequentCategories: {} as { [category: string]: number },
+          nutritionGoals: {
+            dailyCalories: 1800,
+            proteinTarget: 120,
+            carbsTarget: 180,
+            fatTarget: 60
+          },
+          healthProfile: {
+            healthGoal: 'maintain_health' as 'weight_loss' | 'muscle_gain' | 'maintain_health' | 'special_nutrition',
+            activityLevel: 'moderate' as 'light' | 'moderate' | 'heavy'
+          }
+        }
+      };
     }
-  ];
+  })();
+
+  // 菜谱数据
+  const recipes: Recipe[] = extendedRecipes;
 
   // 常见食物数据
   const commonFoods: CommonFood[] = [
@@ -4960,57 +5108,284 @@ const App: React.FC = () => {
     </div>
   );
 
-  const RecipesView = () => (
-    <div className="pb-20 p-6">
-      <h1 className="text-2xl font-bold mb-6">AI菜谱推荐</h1>
-      
-      <div className="mb-6">
-        <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-2xl border border-green-200">
-          <div className="flex items-center mb-2">
-            <Zap className="w-5 h-5 text-green-600 mr-2" />
-            <span className="font-semibold text-green-800">为您推荐</span>
+  // 推荐算法实现
+  const getPersonalizedRecommendations = (count = 10) => {
+    const recommendations = [];
+    
+    // 根据用户历史和偏好生成推荐分数
+    for (const recipe of recipes) {
+      let score = 0;
+      const reasons = [];
+      let category = 'discovery';
+
+      // 1. 营养目标匹配
+      if (defaultUserHistory?.healthProfile?.healthGoal === 'weight_loss') {
+        if (recipe.nutrition.calories < 400) {
+          score += 0.3;
+          reasons.push('低热量，适合减脂');
+        }
+        if (recipe.nutrition.protein > 20) {
+          score += 0.2;
+          reasons.push('高蛋白，增强饱腹感');
+        }
+        category = 'nutrition_optimized';
+      }
+
+      // 2. 历史偏好匹配
+      if (defaultUserHistory?.frequentCategories) {
+        for (const cat of recipe.category) {
+          if (defaultUserHistory.frequentCategories[cat] > 2) {
+            score += 0.2;
+            reasons.push(`您经常制作${cat}类菜品`);
+            category = 'history_based';
+            break;
+          }
+        }
+      }
+
+      // 3. 新菜品发现
+      if (recipe.isNew) {
+        score += 0.3;
+        reasons.push('新品上线，抢先体验');
+        category = 'discovery';
+      }
+
+      // 4. 难度匹配
+      if (defaultUserPreferences?.difficulty?.includes(recipe.difficulty)) {
+        score += 0.1;
+      }
+
+      // 5. 时间偏好
+      if (recipe.cookTime <= (defaultUserPreferences?.cookTime || 30)) {
+        score += 0.1;
+        if (recipe.cookTime <= 15) {
+          reasons.push('快手菜，节省时间');
+        }
+      }
+
+      // 6. 受欢迎程度
+      if (recipe.popularity && recipe.popularity > 0.8) {
+        score += 0.1;
+        reasons.push('热门好评菜品');
+      }
+
+      if (score > 0.3) {
+        recommendations.push({
+          recipe,
+          score,
+          reasons: reasons.slice(0, 2),
+          category
+        });
+      }
+    }
+
+    return recommendations
+      .sort((a, b) => b.score - a.score)
+      .slice(0, count);
+  };
+
+  const RecipesView = () => {
+    const [activeFilter, setActiveFilter] = useState('all');
+    const [showFilters, setShowFilters] = useState(false);
+    
+    const recommendations = getPersonalizedRecommendations(8);
+    
+    // 按类别分组推荐
+    const groupedRecommendations = recommendations.reduce((groups, rec) => {
+      if (!groups[rec.category]) {
+        groups[rec.category] = [];
+      }
+      groups[rec.category].push(rec);
+      return groups;
+    }, {} as Record<string, typeof recommendations>);
+
+    const categoryNames = {
+      history_based: '基于您的喜好',
+      nutrition_optimized: '营养目标推荐',
+      discovery: '新品发现',
+      trending: '热门推荐'
+    };
+
+    const categoryIcons = {
+      history_based: '❤️',
+      nutrition_optimized: '🎯',
+      discovery: '✨',
+      trending: '🔥'
+    };
+
+    const difficultyMap = {
+      easy: { text: '简单', color: 'text-green-600', bg: 'bg-green-100' },
+      medium: { text: '中等', color: 'text-yellow-600', bg: 'bg-yellow-100' },
+      hard: { text: '困难', color: 'text-red-600', bg: 'bg-red-100' }
+    };
+
+    return (
+      <div className="pb-20 p-6 bg-gray-50 min-h-screen">
+        {/* 头部 */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">AI菜谱推荐</h1>
+            <p className="text-sm text-gray-600 mt-1">为您解决"吃什么"的困扰</p>
           </div>
-          <p className="text-sm text-gray-700 mb-3">
-            基于您今日营养缺口，推荐高纤维低脂晚餐
-          </p>
-          <div className="text-xs text-gray-600">
-            还需蛋白质31g • 膳食纤维12g
+          <button 
+            onClick={() => setShowFilters(!showFilters)}
+            className="p-2 bg-white rounded-lg shadow-sm border border-gray-200"
+          >
+            <Filter className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
+
+        {/* 智能推荐横幅 */}
+      <div className="mb-6">
+          <div className="bg-gradient-to-r from-green-50 via-blue-50 to-purple-50 p-6 rounded-2xl border border-green-200 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-200/30 to-transparent rounded-full transform translate-x-16 -translate-y-16"></div>
+            <div className="relative">
+              <div className="flex items-center mb-3">
+                <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center mr-3">
+                  <Zap className="w-4 h-4 text-white" />
+          </div>
+                <span className="font-semibold text-gray-800 text-lg">AI智能推荐</span>
+              </div>
+              <p className="text-sm text-gray-700 mb-4 leading-relaxed">
+                基于您的健康目标、饮食偏好和历史记录，为您精心挑选{recommendations.length}道菜谱
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-block bg-white/80 backdrop-blur-sm text-green-700 text-xs px-3 py-1 rounded-full border border-green-200">🎯 营养匹配</span>
+                <span className="inline-block bg-white/80 backdrop-blur-sm text-blue-700 text-xs px-3 py-1 rounded-full border border-blue-200">❤️ 个人喜好</span>
+                <span className="inline-block bg-white/80 backdrop-blur-sm text-purple-700 text-xs px-3 py-1 rounded-full border border-purple-200">✨ 新品发现</span>
+              </div>
           </div>
         </div>
+        </div>
+
+        {/* 筛选器 */}
+        {showFilters && (
+          <div className="mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+            <h3 className="font-semibold mb-3">筛选条件</h3>
+            <div className="flex flex-wrap gap-2">
+              {['all', 'breakfast', 'lunch', 'dinner', 'snack'].map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setActiveFilter(filter)}
+                  className={`px-3 py-1 rounded-full text-sm ${
+                    activeFilter === filter
+                      ? 'bg-green-500 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {filter === 'all' ? '全部' : 
+                   filter === 'breakfast' ? '早餐' :
+                   filter === 'lunch' ? '午餐' :
+                   filter === 'dinner' ? '晚餐' : '加餐'}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 推荐菜谱列表 */}
+        <div className="space-y-6">
+          {Object.entries(groupedRecommendations).map(([category, recs]) => (
+            <div key={category} className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <span className="text-lg">{categoryIcons[category as keyof typeof categoryIcons]}</span>
+                <h2 className="text-lg font-bold text-gray-800">
+                  {categoryNames[category as keyof typeof categoryNames]}
+                </h2>
+                <span className="text-sm text-gray-500">({recs.length}道)</span>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        {recipes.map((recipe) => (
-          <div key={recipe.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
+                {recs.map(({ recipe, reasons }) => (
+                  <div key={recipe.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
+                    <div className="relative">
             <img 
               src={recipe.image} 
               alt={recipe.name} 
               className="w-full h-48 object-cover"
             />
-            <div className="p-4">
+                      {recipe.isNew && (
+                        <div className="absolute top-3 left-3">
+                          <span className="bg-gradient-to-r from-pink-500 to-orange-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                            ✨ 新品
+                          </span>
+                        </div>
+                      )}
+                      <div className="absolute top-3 right-3">
+                        <div className={`${difficultyMap[recipe.difficulty].bg} ${difficultyMap[recipe.difficulty].color} text-xs px-2 py-1 rounded-full font-medium`}>
+                          {difficultyMap[recipe.difficulty].text}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="p-5">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-semibold text-lg">{recipe.name}</h3>
-                <div className="flex items-center">
-                  <Star className="w-4 h-4 text-yellow-500 mr-1" />
-                  <span className="text-sm">{recipe.rating}</span>
+                        <div className="flex items-center space-x-2">
+                          <h3 className="text-lg font-semibold text-gray-900">{recipe.name}</h3>
+                          {recipe.cuisineType && (
+                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                              {recipe.cuisineType}
+                            </span>
+                          )}
                 </div>
+                        <div className="flex items-center text-yellow-500">
+                          <Star className="w-4 h-4 fill-current" />
+                          <span className="text-sm ml-1 font-medium">{recipe.rating}</span>
               </div>
-              <p className="text-gray-600 text-sm mb-3">{recipe.description}</p>
-              <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
+                      </div>
+
+                      <p className="text-sm text-gray-600 mb-3 leading-relaxed">{recipe.description}</p>
+
+                      {/* 推荐理由 */}
+                      {reasons.length > 0 && (
+                        <div className="mb-3">
+                          <div className="flex flex-wrap gap-1">
+                            {reasons.map((reason, index) => (
+                              <span 
+                                key={index}
+                                className="inline-block bg-green-50 text-green-700 text-xs px-2 py-1 rounded border border-green-200"
+                              >
+                                💡 {reason}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                        <div className="flex items-center space-x-4">
                 <div className="flex items-center">
                   <Clock className="w-4 h-4 mr-1" />
                   <span>{recipe.cookTime}分钟</span>
                 </div>
-                <div>{recipe.nutrition.calories}千卡 | {recipe.nutrition.protein}g蛋白质</div>
+                          <div className="text-gray-400">|</div>
+                          <div>{recipe.nutrition.calories}千卡</div>
+                          <div className="text-gray-400">|</div>
+                          <div>{recipe.nutrition.protein}g蛋白质</div>
               </div>
-              <div className="flex space-x-2">
+                      </div>
+
+                      {/* 标签 */}
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {recipe.tags && recipe.tags.slice(0, 3).map((tag, index) => (
+                          <span 
+                            key={index}
+                            className="inline-block bg-gray-50 text-gray-600 text-xs px-2 py-1 rounded border border-gray-200"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="flex space-x-3">
                 <button 
                   onClick={() => {
                     setSelectedRecipe(recipe);
                     setShowRecipeDetail(true);
                   }}
-                  className="flex-1 bg-green-500 text-white py-2 px-4 rounded-lg font-semibold"
+                          className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-green-600 hover:to-green-700 transition-all flex items-center justify-center"
                 >
+                          <BookOpen className="w-4 h-4 mr-2" />
                   查看菜谱
                 </button>
                 <button 
@@ -5018,7 +5393,7 @@ const App: React.FC = () => {
                     setSelectedRecipe(recipe);
                     setShowRecipeDetail(true);
                   }}
-                  className="bg-blue-500 text-white py-2 px-4 rounded-lg"
+                          className="bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
                 >
                   <ShoppingCart className="w-4 h-4" />
                 </button>
@@ -5027,8 +5402,23 @@ const App: React.FC = () => {
           </div>
         ))}
       </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 空状态 */}
+        {recommendations.length === 0 && (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <BookOpen className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">暂无推荐菜谱</h3>
+            <p className="text-gray-600">请先记录一些饮食数据，让AI了解您的喜好</p>
+          </div>
+        )}
     </div>
   );
+  };
 
   const CommunityView = () => (
     <div className="pb-20 p-6">
