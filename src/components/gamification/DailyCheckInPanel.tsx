@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Flame, Gift, Star, Crown, CheckCircle, Clock, TrendingUp } from 'lucide-react';
+import { Calendar, Flame, Gift, CheckCircle, TrendingUp } from 'lucide-react';
 import { useUltraSimpleGamificationStore } from '../../stores/ultraSimpleGamificationStore';
 import clsx from 'clsx';
 

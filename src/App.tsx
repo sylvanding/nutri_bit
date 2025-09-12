@@ -4,6 +4,12 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieC
 import UltraSimpleGamificationPanel from './components/gamification/UltraSimpleGamificationPanel';
 import { useUltraSimpleGamificationStore } from './stores/ultraSimpleGamificationStore';
 
+// 会员系统导入
+import { useMembership, useMembershipGuard } from './hooks/useMembership';
+import { MembershipBadge, MembershipGuard, FeatureLocker, UsageMeter } from './components/membership/MembershipGuard';
+import { UpgradeModal } from './components/membership/UpgradeModal';
+import { MembershipCenter } from './components/membership/MembershipCenter';
+
 interface NutritionData {
   calories: number;
   protein: number;
@@ -262,6 +268,10 @@ const App: React.FC = () => {
   
   // 游戏化系统
   const { addExp, logMeal, level, exp, streak, totalMeals } = useUltraSimpleGamificationStore();
+  
+  // 会员系统
+  const { membership, permissions, usage, actions, ui } = useMembership();
+  const { executeWithPermission } = useMembershipGuard();
   
   // 新增状态：拍照后的餐次选择
   const [showMealSelection, setShowMealSelection] = useState(false);
@@ -3722,6 +3732,11 @@ const App: React.FC = () => {
             <p className="text-green-100 text-sm">精准营养解码，预见更健康的你</p>
           </div>
           <div className="flex items-center gap-3">
+            {/* 会员徽章 */}
+            <MembershipBadge 
+              onClick={actions.showCenter}
+              className="hover:scale-105 transition-transform"
+            />
             {/* 游戏化状态显示 */}
             <div className="flex items-center gap-2 bg-white/20 rounded-full px-3 py-1">
               <Zap size={16} className="text-yellow-300" />
@@ -3792,11 +3807,30 @@ const App: React.FC = () => {
       <div className="p-6">
         <div className="grid grid-cols-2 gap-3 mb-6">
           <button 
-            onClick={() => setShowCamera(true)}
-            className="bg-green-500 text-white p-4 rounded-2xl flex items-center justify-center space-x-2 shadow-lg"
+            onClick={async () => {
+              await executeWithPermission(
+                'ai_recognition',
+                () => {
+                  setShowCamera(true);
+                  return Promise.resolve();
+                },
+                {
+                  autoPromptUpgrade: true,
+                  onDenied: (reason) => {
+                    console.log('AI识别权限不足:', reason);
+                  }
+                }
+              );
+            }}
+            className="bg-green-500 text-white p-4 rounded-2xl flex items-center justify-center space-x-2 shadow-lg hover:bg-green-600 transition-colors relative"
           >
             <Camera size={20} />
             <span className="font-semibold text-sm">拍照记录</span>
+            {!permissions.hasUnlimitedAi && (
+              <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                {membership.remainingUsage?.aiRecognition || 0}
+              </div>
+            )}
           </button>
           <button 
             onClick={() => setActiveTab('recipes')}
@@ -5788,6 +5822,17 @@ const App: React.FC = () => {
           onClose={() => setShowPremiumPlanDetail(false)}
         />
       )}
+
+      {/* 会员系统模态框 */}
+      <UpgradeModal 
+        isOpen={ui.showUpgradeModal} 
+        onClose={actions.hideUpgrade} 
+      />
+      
+      <MembershipCenter 
+        isOpen={ui.showMembershipModal} 
+        onClose={actions.hideCenter} 
+      />
     </div>
     );
   };

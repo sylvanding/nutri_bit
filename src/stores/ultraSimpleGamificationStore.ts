@@ -33,7 +33,7 @@ interface UltraSimpleGameActions {
   // 新增的打卡相关方法
   dailyCheckIn: () => void;
   canCheckInToday: () => boolean;
-  getStreakRewards: () => Array<{ id: string; name: string; description: string; icon: string; unlocked: boolean; expReward: number }>;
+  getStreakRewards: () => Array<StreakRewardConfig & { unlocked: boolean }>;
   claimStreakReward: (rewardId: string) => void;
   getStats: () => {
     level: number;
@@ -172,7 +172,16 @@ const isConsecutiveDate = (lastDate: string, today: string): boolean => {
 };
 
 // 连击奖励配置
-const streakRewardConfig = [
+interface StreakRewardConfig {
+  id: string;
+  name: string;
+  description: string;
+  minStreak: number;
+  expReward: number;
+  icon: string;
+}
+
+const streakRewardConfig: StreakRewardConfig[] = [
   { id: 'reward_3', name: '坚持奖励', description: '连续3天记录奖励', minStreak: 3, expReward: 50, icon: '🎁' },
   { id: 'reward_7', name: '一周奖励', description: '连续7天记录奖励', minStreak: 7, expReward: 100, icon: '🎊' },
   { id: 'reward_15', name: '半月奖励', description: '连续15天记录奖励', minStreak: 15, expReward: 200, icon: '🎉' },
