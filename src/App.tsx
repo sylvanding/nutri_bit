@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Home, BookOpen, Users, User, MessageCircle, TrendingUp, Target, Award, ShoppingCart, Heart, Star, Clock, Zap, Check, BarChart3, Plus, Utensils, Coffee, Sandwich, Apple, Droplets, Filter, Search, Tag, Sparkles, Crown, Brain, Eye, Cpu, Wand2, Stethoscope, Video, Phone, MessageSquare, CheckCircle, XCircle, Badge, GraduationCap, MapPin, ArrowLeft } from 'lucide-react';
+import { Camera, Home, BookOpen, Users, User, MessageCircle, TrendingUp, Target, Award, ShoppingCart, Heart, Star, Clock, Zap, Check, BarChart3, Plus, Utensils, Coffee, Sandwich, Apple, Droplets, Filter, Search, Tag, Sparkles, Crown, Brain, Eye, Cpu, Wand2, Stethoscope, Video, Phone, MessageSquare, CheckCircle, XCircle, Badge, GraduationCap, MapPin, ArrowLeft, ChevronUp } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import UltraSimpleGamificationPanel from './components/gamification/UltraSimpleGamificationPanel';
 import { useUltraSimpleGamificationStore } from './stores/ultraSimpleGamificationStore';
@@ -462,11 +462,39 @@ const App: React.FC = () => {
     timestamp?: string;
   }>>([]);
   const [currentAnalysisStep, setCurrentAnalysisStep] = useState(-1);
+  const [stepsCollapsed, setStepsCollapsed] = useState(false);
   
-  // 移除了分析步骤滚动控制的ref
+  // 分析步骤滚动控制的ref
+  const stepsContainerRef = useRef<HTMLDivElement>(null);
+  
+  // 平滑滚动到最新步骤
+  const scrollToLatestStep = (stepIndex: number) => {
+    if (stepsContainerRef.current && !stepsCollapsed) {
+      const container = stepsContainerRef.current;
+      const stepElements = container.querySelectorAll('[data-step-index]');
+      
+      if (stepElements[stepIndex]) {
+        const targetElement = stepElements[stepIndex] as HTMLElement;
+        const containerHeight = container.clientHeight;
+        const elementTop = targetElement.offsetTop - container.offsetTop;
+        const elementHeight = targetElement.clientHeight;
+        
+        // 计算目标滚动位置，使当前步骤显示在容器中央偏下位置
+        const targetScrollTop = elementTop - containerHeight * 0.3;
+        
+        // 平滑滚动
+        container.scrollTo({
+          top: Math.max(0, targetScrollTop),
+          behavior: 'smooth'
+        });
+      }
+    }
+  };
   
   // 自动关闭倒计时状态
   const [autoCloseCountdown, setAutoCloseCountdown] = useState<number | null>(null);
+  // 用户是否已取消自动跳转
+  const [userCancelledAutoRedirect, setUserCancelledAutoRedirect] = useState(false);
   const [analysisResults, setAnalysisResults] = useState<{
     detectedFoods: Array<{
       name: string;
@@ -514,9 +542,9 @@ const App: React.FC = () => {
 
   // 监听分析完成状态，自动收起分析界面
   React.useEffect(() => {
-    if (analysisResults && currentAnalysisStep >= 5) {
-      // 开始3秒倒计时
-      setAutoCloseCountdown(3);
+    if (analysisResults && currentAnalysisStep >= 5 && !userCancelledAutoRedirect) {
+      // 开始8秒倒计时，给用户更多时间查看结果
+      setAutoCloseCountdown(8);
       
       const countdownInterval = setInterval(() => {
         setAutoCloseCountdown(prev => {
@@ -537,7 +565,7 @@ const App: React.FC = () => {
         setAutoCloseCountdown(null);
       };
     }
-  }, [analysisResults, currentAnalysisStep]);
+  }, [analysisResults, currentAnalysisStep, userCancelledAutoRedirect]);
 
   // 基于当前时间自动检测餐次
   const detectMealType = (): 'breakfast' | 'lunch' | 'dinner' | 'snack' => {
@@ -561,6 +589,8 @@ const App: React.FC = () => {
     setCurrentAnalysisStep(-1);
     setAnalysisResults(null);
     setAutoCloseCountdown(null);
+    setUserCancelledAutoRedirect(false);
+    setStepsCollapsed(false);
 
     const steps = [
       { step: 'image_processing', content: '正在处理图像...', status: 'pending' as const },
@@ -620,6 +650,11 @@ const App: React.FC = () => {
           timestamp: timestamp
         } : step
       ));
+      
+      // 延迟滚动到当前完成的步骤，确保DOM更新完成
+      setTimeout(() => {
+        scrollToLatestStep(i);
+      }, 300);
     }
 
     // 设置最终分析结果
@@ -699,6 +734,10 @@ const App: React.FC = () => {
     // 延迟设置完成状态，确保analysisResults先设置
     setTimeout(() => {
       setCurrentAnalysisStep(steps.length);
+      // 分析完成后自动折叠步骤
+      setTimeout(() => {
+        setStepsCollapsed(true);
+      }, 3000); // 延迟3秒后折叠，让用户能看到完成状态
     }, 100);
   };
 
@@ -2282,11 +2321,9 @@ const App: React.FC = () => {
                   setCapturedPhoto('mock-photo-data');
                   // 根据当前时间自动设置餐次
                   setSelectedMealType(detectMealType());
-                  // 关闭拍照界面，开始AI分析流程
+                  // 关闭拍照界面，显示餐次选择弹窗
                   setShowCamera(false);
-                  setShowAIAnalysis(true);
-                  // 启动AI分析流程
-                  startAIAnalysis();
+                  setShowMealSelection(true);
                 }}
                 className="w-24 h-24 bg-gradient-to-br from-emerald-400 via-green-500 to-blue-600 rounded-full flex items-center justify-center text-white border-4 border-white shadow-2xl hover:scale-110 active:scale-95 transition-all duration-500 relative z-10 transform hover:rotate-12 active:rotate-0"
               >
@@ -2436,11 +2473,41 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* 分析步骤 - 超美化版，移除滚动控制 */}
-          <div className="p-6 space-y-3 max-h-96 overflow-y-auto bg-gradient-to-b from-slate-50 via-white to-purple-50/30 scrollbar-hide">
-            {aiAnalysisSteps.map((step, index) => (
+          {/* 分析步骤 - 超美化版，添加折叠功能 */}
+          <div className="bg-gradient-to-b from-slate-50 via-white to-purple-50/30">
+            {/* 步骤折叠/展开控制 */}
+            {aiAnalysisSteps.length > 0 && (
+              <div className="px-6 pt-4 pb-2 border-b border-gray-100">
+                <button
+                  onClick={() => setStepsCollapsed(!stepsCollapsed)}
+                  className="w-full flex items-center justify-between text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors py-2 px-3 rounded-lg hover:bg-white/50"
+                >
+                  <span className="flex items-center space-x-2">
+                    <Eye size={16} />
+                    <span>分析步骤详情</span>
+                    {currentAnalysisStep >= 6 && (
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">已完成</span>
+                    )}
+                  </span>
+                  <div className={`transform transition-transform duration-300 ${stepsCollapsed ? 'rotate-180' : ''}`}>
+                    <ChevronUp size={16} />
+                  </div>
+                </button>
+              </div>
+            )}
+            
+            {/* 步骤列表 - 可折叠 */}
+            <div className={`transition-all duration-500 ease-in-out overflow-hidden ${
+              stepsCollapsed ? 'max-h-0 opacity-0' : 'max-h-96 opacity-100'
+            }`}>
               <div 
-                key={index} 
+                ref={stepsContainerRef}
+                className="p-6 space-y-3 max-h-96 overflow-y-auto scrollbar-hide"
+              >
+                {aiAnalysisSteps.map((step, index) => (
+              <div 
+                key={index}
+                data-step-index={index}
                 className={`relative flex items-start space-x-4 p-4 rounded-2xl transition-all duration-700 transform ${
                   step.status === 'completed' ? 'bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 shadow-lg scale-100 translate-y-0' :
                   step.status === 'processing' ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 shadow-xl scale-105 -translate-y-1' :
@@ -2508,7 +2575,9 @@ const App: React.FC = () => {
                   )}
                 </div>
               </div>
-            ))}
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* 自动关闭倒计时提示 - 美化版 */}
@@ -2526,6 +2595,7 @@ const App: React.FC = () => {
               <button
                 onClick={() => {
                   setAutoCloseCountdown(null);
+                  setUserCancelledAutoRedirect(true);
                 }}
                 className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-2 rounded-xl font-bold text-sm hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
               >
@@ -2723,7 +2793,9 @@ const App: React.FC = () => {
               <button
                 onClick={() => {
                   setShowMealSelection(false);
-                  setShowNutritionReport(true);
+                  setShowAIAnalysis(true);
+                  // 启动AI分析流程
+                  startAIAnalysis();
                 }}
                 className="flex-1 py-3 px-4 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition-colors"
               >
