@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Home, BookOpen, Users, User, MessageCircle, TrendingUp, Target, Award, ShoppingCart, Heart, Star, Clock, Zap, Check, BarChart3, Plus, Utensils, Coffee, Sandwich, Apple, Droplets, Filter, Search, Tag, Sparkles, Crown, Brain, Eye, Cpu, Wand2, Stethoscope, Video, Phone, MessageSquare, CheckCircle, XCircle, Badge, GraduationCap, MapPin } from 'lucide-react';
+import { Camera, Home, BookOpen, Users, User, MessageCircle, TrendingUp, Target, Award, ShoppingCart, Heart, Star, Clock, Zap, Check, BarChart3, Plus, Utensils, Coffee, Sandwich, Apple, Droplets, Filter, Search, Tag, Sparkles, Crown, Brain, Eye, Cpu, Wand2, Stethoscope, Video, Phone, MessageSquare, CheckCircle, XCircle, Badge, GraduationCap, MapPin, ArrowLeft } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import UltraSimpleGamificationPanel from './components/gamification/UltraSimpleGamificationPanel';
 import { useUltraSimpleGamificationStore } from './stores/ultraSimpleGamificationStore';
@@ -4330,181 +4330,230 @@ const App: React.FC = () => {
   };
 
   const HomeView = () => (
-    <div className="pb-20">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-green-400 to-green-600 text-white p-6 rounded-b-3xl">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h1 className="text-2xl font-bold">食刻</h1>
-            <p className="text-green-100 text-sm">精准营养解码，预见更健康的你</p>
-          </div>
+    <div className="pb-24 bg-gray-50">
+      {/* 优化后的头部 */}
+      <div className="bg-gradient-to-br from-green-500 via-green-600 to-green-700 text-white">
+        {/* 顶部栏 */}
+        <div className="flex justify-between items-center px-6 pt-6 pb-4">
           <div className="flex items-center gap-3">
-            {/* 游戏化状态显示 */}
-            <div className="flex items-center gap-2 bg-white/20 rounded-full px-3 py-1">
-              <Zap size={16} className="text-yellow-300" />
-              <span className="text-sm font-medium">Lv.{level}</span>
-              {streak > 0 && (
-                <>
-                  <div className="w-1 h-1 bg-white rounded-full" />
-                  <div className="flex items-center gap-1">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+              <span className="text-xl">🥗</span>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold">食刻</h1>
+              <p className="text-green-100 text-xs">智能营养管家</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* 简化的状态显示 */}
+            <div className="bg-white/15 backdrop-blur-sm rounded-xl px-3 py-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Zap size={14} className="text-yellow-300" />
+                <span className="font-medium">Lv.{level}</span>
+                {streak > 0 && (
+                  <>
                     <span className="text-orange-300">🔥</span>
                     <span className="text-xs">{streak}</span>
-                  </div>
-                </>
-              )}
+                  </>
+                )}
+              </div>
             </div>
             <button 
               onClick={() => setAiChatOpen(true)}
-              className="w-10 h-10 bg-green-300 rounded-full flex items-center justify-center"
+              className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center hover:bg-white/30 transition-colors"
             >
               🦝
             </button>
           </div>
         </div>
         
-        {/* 分餐选项卡 */}
-        <div className="flex bg-green-300/30 rounded-full p-1 mb-4">
-          {Object.entries(mealTypeNames).map(([key, name]) => (
-            <button
-              key={key}
-              onClick={() => setSelectedMealTime(key)}
-              className={`flex-1 py-2 px-3 rounded-full text-sm font-medium transition-all ${
-                selectedMealTime === key 
-                  ? 'bg-white text-green-700 shadow-sm' 
-                  : 'text-green-100 hover:text-white'
-              }`}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
-
-        <div className="text-center">
-          <div className="text-3xl font-bold mb-1">
-            {selectedMealTime === 'all' 
-              ? todayNutrition.current.calories 
-              : mealNutritionByType[selectedMealTime as keyof typeof mealNutritionByType]?.calories || 0
-            }
-          </div>
-          <div className="text-green-100 text-sm">
-            {selectedMealTime === 'all' 
-              ? `今日摄入热量 / ${todayNutrition.target.calories} 千卡`
-              : `${mealTypeNames[selectedMealTime as keyof typeof mealTypeNames]}热量摄入 / ${mealCalorieStandards[selectedMealTime as keyof typeof mealCalorieStandards]} 千卡`
-            }
-          </div>
-          <div className="w-full bg-green-300 rounded-full h-2 mt-3">
-            <div 
-              className="bg-white rounded-full h-2 transition-all duration-300"
-              style={{ 
-                width: selectedMealTime === 'all' 
-                  ? `${(todayNutrition.current.calories / todayNutrition.target.calories) * 100}%`
-                  : `${((mealNutritionByType[selectedMealTime as keyof typeof mealNutritionByType]?.calories || 0) / mealCalorieStandards[selectedMealTime as keyof typeof mealCalorieStandards]) * 100}%`
-              }}
-            ></div>
+        {/* 主要热量显示 */}
+        <div className="px-6 pb-6">
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
+            <div className="text-center mb-4">
+              <div className="text-4xl font-bold mb-2">
+                {selectedMealTime === 'all' 
+                  ? todayNutrition.current.calories 
+                  : mealNutritionByType[selectedMealTime as keyof typeof mealNutritionByType]?.calories || 0
+                }
+              </div>
+              <div className="text-green-100 text-sm">
+                {selectedMealTime === 'all' 
+                  ? `今日摄入 / ${todayNutrition.target.calories} 千卡`
+                  : `${mealTypeNames[selectedMealTime as keyof typeof mealTypeNames]} / ${mealCalorieStandards[selectedMealTime as keyof typeof mealCalorieStandards]} 千卡`
+                }
+              </div>
+              <div className="w-full bg-white/20 rounded-full h-3 mt-4">
+                <div 
+                  className="bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full h-3 transition-all duration-500 shadow-sm"
+                  style={{ 
+                    width: selectedMealTime === 'all' 
+                      ? `${Math.min((todayNutrition.current.calories / todayNutrition.target.calories) * 100, 100)}%`
+                      : `${Math.min(((mealNutritionByType[selectedMealTime as keyof typeof mealNutritionByType]?.calories || 0) / mealCalorieStandards[selectedMealTime as keyof typeof mealCalorieStandards]) * 100, 100)}%`
+                  }}
+                ></div>
+              </div>
+            </div>
+            
+            {/* 简化的分餐选项卡 */}
+            <div className="flex bg-white/10 rounded-xl p-1">
+              {Object.entries(mealTypeNames).map(([key, name]) => (
+                <button
+                  key={key}
+                  onClick={() => setSelectedMealTime(key)}
+                  className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+                    selectedMealTime === key 
+                      ? 'bg-white/25 text-white shadow-sm backdrop-blur-sm' 
+                      : 'text-green-100 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="p-6">
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <button 
-            onClick={async () => {
-              await executeWithPermission(
-                'ai_recognition',
-                () => {
-                  setShowCamera(true);
-                  return Promise.resolve();
-                },
-                {
-                  autoPromptUpgrade: true,
-                  onDenied: (reason) => {
-                    console.log('AI识别权限不足:', reason);
-                  }
-                }
-              );
-            }}
-            className="bg-green-500 text-white p-4 rounded-2xl flex items-center justify-center space-x-2 shadow-lg hover:bg-green-600 transition-colors relative"
-          >
-            <Camera size={20} />
-            <span className="font-semibold text-sm">拍照记录</span>
-            {!permissions.hasUnlimitedAi && (
-              <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full">
-                {membership.remainingUsage?.aiRecognition || 0}
-              </div>
-            )}
-          </button>
-          <button 
-            onClick={() => setActiveTab('recipes')}
-            className="bg-blue-500 text-white p-4 rounded-2xl flex items-center justify-center space-x-2 shadow-lg"
-          >
-            <BookOpen size={20} />
-            <span className="font-semibold text-sm">AI推荐</span>
-          </button>
-        </div>
-        
-        {/* 游戏化快捷入口 */}
-        <div className="mb-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-4 text-white">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Award size={20} />
-              <span className="font-semibold">成就进度</span>
-            </div>
+      {/* 优化后的操作区域 */}
+      <div className="px-6 -mt-8 relative z-10">
+        {/* 主要操作卡片 */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+          <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="text-2xl">⚡</span>
+            快捷记录
+          </h2>
+          
+          {/* 主要功能按钮 */}
+          <div className="grid grid-cols-2 gap-4 mb-5">
             <button 
-              onClick={() => setActiveTab('gamification')}
-              className="text-xs bg-white/20 px-2 py-1 rounded-full"
+              onClick={async () => {
+                await executeWithPermission(
+                  'ai_recognition',
+                  () => {
+                    setShowCamera(true);
+                    return Promise.resolve();
+                  },
+                  {
+                    autoPromptUpgrade: true,
+                    onDenied: (reason) => {
+                      console.log('AI识别权限不足:', reason);
+                    }
+                  }
+                );
+              }}
+              className="group bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-2xl flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 relative"
             >
-              查看全部
+              <div className="bg-white/20 rounded-full p-2">
+                <Camera size={20} />
+              </div>
+              <div className="text-left">
+                <div className="font-bold text-base">拍照记录</div>
+                <div className="text-green-100 text-xs">AI智能识别</div>
+              </div>
+              {!permissions.hasUnlimitedAi && (
+                <div className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full shadow-md">
+                  {membership.remainingUsage?.aiRecognition || 0}
+                </div>
+              )}
+            </button>
+            
+            <button 
+              onClick={() => setActiveTab('recipes')}
+              className="group bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-2xl flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
+            >
+              <div className="bg-white/20 rounded-full p-2">
+                <BookOpen size={20} />
+              </div>
+              <div className="text-left">
+                <div className="font-bold text-base">AI推荐</div>
+                <div className="text-blue-100 text-xs">个性化菜谱</div>
+              </div>
             </button>
           </div>
-          <div className="flex items-center gap-4 text-sm">
-            <div>
-              <span className="text-purple-100">等级 </span>
-              <span className="font-bold">Lv.{level}</span>
-            </div>
-            <div>
-              <span className="text-purple-100">连击 </span>
-              <span className="font-bold">{streak} 天</span>
-            </div>
-            <div>
-              <span className="text-purple-100">经验 </span>
-              <span className="font-bold">{exp}</span>
+          
+          {/* 快捷餐食添加 */}
+          <div className="border-t border-gray-100 pt-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <span>🍽️</span>
+              快速添加
+            </h3>
+            <div className="grid grid-cols-4 gap-3">
+              <button 
+                onClick={() => setShowCommonFoods(true)}
+                className="bg-orange-50 border border-orange-200 p-3 rounded-xl flex flex-col items-center space-y-2 hover:bg-orange-100 hover:border-orange-300 transition-all duration-200 group"
+              >
+                <div className="bg-orange-500 text-white rounded-full p-2 group-hover:scale-110 transition-transform">
+                  <Coffee size={16} />
+                </div>
+                <span className="text-xs font-medium text-orange-700">早餐</span>
+              </button>
+              <button 
+                onClick={() => setShowCommonFoods(true)}
+                className="bg-green-50 border border-green-200 p-3 rounded-xl flex flex-col items-center space-y-2 hover:bg-green-100 hover:border-green-300 transition-all duration-200 group"
+              >
+                <div className="bg-green-500 text-white rounded-full p-2 group-hover:scale-110 transition-transform">
+                  <Utensils size={16} />
+                </div>
+                <span className="text-xs font-medium text-green-700">午餐</span>
+              </button>
+              <button 
+                onClick={() => setShowCommonFoods(true)}
+                className="bg-blue-50 border border-blue-200 p-3 rounded-xl flex flex-col items-center space-y-2 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 group"
+              >
+                <div className="bg-blue-500 text-white rounded-full p-2 group-hover:scale-110 transition-transform">
+                  <Sandwich size={16} />
+                </div>
+                <span className="text-xs font-medium text-blue-700">晚餐</span>
+              </button>
+              <button 
+                onClick={() => setShowCommonFoods(true)}
+                className="bg-purple-50 border border-purple-200 p-3 rounded-xl flex flex-col items-center space-y-2 hover:bg-purple-100 hover:border-purple-300 transition-all duration-200 group"
+              >
+                <div className="bg-purple-500 text-white rounded-full p-2 group-hover:scale-110 transition-transform">
+                  <Apple size={16} />
+                </div>
+                <span className="text-xs font-medium text-purple-700">加餐</span>
+              </button>
             </div>
           </div>
         </div>
 
-        {/* 快捷添加餐食 */}
-        <div className="mb-6">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">快捷记录</h3>
-          <div className="grid grid-cols-4 gap-3">
+        {/* 成就进度卡片 */}
+        <div className="bg-gradient-to-br from-purple-500 via-purple-600 to-pink-600 rounded-2xl p-6 text-white shadow-lg mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 rounded-full p-2">
+                <Award size={20} />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg">成就进度</h3>
+                <p className="text-purple-100 text-sm">坚持就是胜利</p>
+              </div>
+            </div>
             <button 
-              onClick={() => setShowCommonFoods(true)}
-              className="bg-white p-3 rounded-xl shadow-sm flex flex-col items-center space-y-1 hover:shadow-md transition-shadow"
+              onClick={() => setActiveTab('gamification')}
+              className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/30 transition-colors"
             >
-              <Coffee className="w-5 h-5 text-orange-500" />
-              <span className="text-xs text-gray-600">早餐</span>
+              查看全部
             </button>
-            <button 
-              onClick={() => setShowCommonFoods(true)}
-              className="bg-white p-3 rounded-xl shadow-sm flex flex-col items-center space-y-1 hover:shadow-md transition-shadow"
-            >
-              <Utensils className="w-5 h-5 text-green-500" />
-              <span className="text-xs text-gray-600">午餐</span>
-            </button>
-            <button 
-              onClick={() => setShowCommonFoods(true)}
-              className="bg-white p-3 rounded-xl shadow-sm flex flex-col items-center space-y-1 hover:shadow-md transition-shadow"
-            >
-              <Sandwich className="w-5 h-5 text-blue-500" />
-              <span className="text-xs text-gray-600">晚餐</span>
-            </button>
-            <button 
-              onClick={() => setShowCommonFoods(true)}
-              className="bg-white p-3 rounded-xl shadow-sm flex flex-col items-center space-y-1 hover:shadow-md transition-shadow"
-            >
-              <Apple className="w-5 h-5 text-red-500" />
-              <span className="text-xs text-gray-600">加餐</span>
-            </button>
+          </div>
+          
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-white/10 rounded-xl p-3 text-center backdrop-blur-sm">
+              <div className="text-2xl font-bold mb-1">Lv.{level}</div>
+              <div className="text-purple-100 text-xs">当前等级</div>
+            </div>
+            <div className="bg-white/10 rounded-xl p-3 text-center backdrop-blur-sm">
+              <div className="text-2xl font-bold mb-1 flex items-center justify-center gap-1">
+                🔥 {streak}
+              </div>
+              <div className="text-purple-100 text-xs">连续天数</div>
+            </div>
+            <div className="bg-white/10 rounded-xl p-3 text-center backdrop-blur-sm">
+              <div className="text-2xl font-bold mb-1">{exp}</div>
+              <div className="text-purple-100 text-xs">经验值</div>
+            </div>
           </div>
         </div>
 
@@ -4652,116 +4701,217 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* 今日目标进度概览 */}
-        <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-2xl mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-gray-800">今日目标</h3>
-            <span className="text-xs text-gray-600">82% 完成</span>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white/70 rounded-lg p-3 text-center">
-              <div className="text-lg font-bold text-green-600 mb-1">
-                {todayNutrition.current.calories}
+        {/* 优化后的营养概览 */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📊</span>
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">今日营养</h2>
+                <p className="text-gray-500 text-sm">营养目标完成度</p>
               </div>
-              <div className="text-xs text-gray-600">千卡 / {todayNutrition.target.calories}</div>
-              <div className="w-full bg-gray-200 rounded-full h-1 mt-2">
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-green-600">
+                {Math.round(((todayNutrition.current.calories + todayNutrition.current.protein + todayNutrition.current.carbs) / (todayNutrition.target.calories + todayNutrition.target.protein + todayNutrition.target.carbs)) * 100)}%
+              </div>
+              <div className="text-xs text-gray-500">总体完成率</div>
+            </div>
+          </div>
+
+          {/* 主要营养素 - 大卡片 */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            {/* 热量 */}
+            <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm">🔥</span>
+                  </div>
+                  <span className="font-semibold text-gray-800">热量</span>
+                </div>
+                <span className="text-xs text-gray-600">
+                  {Math.round((todayNutrition.current.calories / todayNutrition.target.calories) * 100)}%
+                </span>
+              </div>
+              <div className="mb-2">
+                <div className="text-2xl font-bold text-green-700 mb-1">
+                  {todayNutrition.current.calories}
+                </div>
+                <div className="text-sm text-gray-600">/ {todayNutrition.target.calories} 千卡</div>
+              </div>
+              <div className="w-full bg-green-200 rounded-full h-2">
                 <div 
-                  className="h-1 rounded-full bg-green-500"
+                  className="bg-gradient-to-r from-green-500 to-green-600 rounded-full h-2 transition-all duration-500"
                   style={{ width: `${Math.min((todayNutrition.current.calories / todayNutrition.target.calories) * 100, 100)}%` }}
                 ></div>
               </div>
             </div>
-            <div className="bg-white/70 rounded-lg p-3 text-center">
-              <div className="text-lg font-bold text-orange-600 mb-1">
-                {todayNutrition.current.protein}g
+
+            {/* 蛋白质 */}
+            <div className="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm">💪</span>
+                  </div>
+                  <span className="font-semibold text-gray-800">蛋白质</span>
+                </div>
+                <span className="text-xs text-gray-600">
+                  {Math.round((todayNutrition.current.protein / todayNutrition.target.protein) * 100)}%
+                </span>
               </div>
-              <div className="text-xs text-gray-600">蛋白质 / {todayNutrition.target.protein}g</div>
-              <div className="w-full bg-gray-200 rounded-full h-1 mt-2">
+              <div className="mb-2">
+                <div className="text-2xl font-bold text-orange-700 mb-1">
+                  {todayNutrition.current.protein}g
+                </div>
+                <div className="text-sm text-gray-600">/ {todayNutrition.target.protein}g</div>
+              </div>
+              <div className="w-full bg-orange-200 rounded-full h-2">
                 <div 
-                  className="h-1 rounded-full bg-orange-500"
+                  className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-full h-2 transition-all duration-500"
                   style={{ width: `${Math.min((todayNutrition.current.protein / todayNutrition.target.protein) * 100, 100)}%` }}
                 ></div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Nutrition Overview */}
-        <div className="mb-6">
-          <h2 className="text-lg font-bold mb-4">今日营养概览</h2>
+          {/* 其他营养素 - 小卡片 */}
           <div className="grid grid-cols-2 gap-3">
-            {renderNutritionCard(
-              '蛋白质', 
-              todayNutrition.current.protein, 
-              todayNutrition.target.protein, 
-              'g', 
-              'bg-orange-500'
-            )}
-            {renderNutritionCard(
-              '碳水化合物', 
-              todayNutrition.current.carbs, 
-              todayNutrition.target.carbs, 
-              'g', 
-              'bg-green-500'
-            )}
-            {renderNutritionCard(
-              '脂肪', 
-              todayNutrition.current.fat, 
-              todayNutrition.target.fat, 
-              'g', 
-              'bg-purple-500'
-            )}
-            {renderNutritionCard(
-              '膳食纤维', 
-              todayNutrition.current.fiber, 
-              todayNutrition.target.fiber, 
-              'g', 
-              'bg-blue-500'
-            )}
-            {renderNutritionCard(
-              '钠', 
-              todayNutrition.current.sodium, 
-              todayNutrition.target.sodium, 
-              'mg', 
-              'bg-red-500'
-            )}
-            {renderNutritionCard(
-              '热量密度', 
-              Math.round((todayNutrition.current.calories / todayNutrition.target.calories) * 100), 
-              100, 
-              '%', 
-              'bg-indigo-500'
-            )}
+            {/* 碳水化合物 */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs">🌾</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">碳水</span>
+                </div>
+                <span className="text-xs text-gray-500">
+                  {Math.round((todayNutrition.current.carbs / todayNutrition.target.carbs) * 100)}%
+                </span>
+              </div>
+              <div className="text-lg font-bold text-blue-700 mb-1">
+                {todayNutrition.current.carbs}g
+              </div>
+              <div className="w-full bg-blue-200 rounded-full h-1.5">
+                <div 
+                  className="bg-blue-500 rounded-full h-1.5 transition-all duration-500"
+                  style={{ width: `${Math.min((todayNutrition.current.carbs / todayNutrition.target.carbs) * 100, 100)}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* 脂肪 */}
+            <div className="bg-purple-50 border border-purple-200 rounded-xl p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs">🥑</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">脂肪</span>
+                </div>
+                <span className="text-xs text-gray-500">
+                  {Math.round((todayNutrition.current.fat / todayNutrition.target.fat) * 100)}%
+                </span>
+              </div>
+              <div className="text-lg font-bold text-purple-700 mb-1">
+                {todayNutrition.current.fat}g
+              </div>
+              <div className="w-full bg-purple-200 rounded-full h-1.5">
+                <div 
+                  className="bg-purple-500 rounded-full h-1.5 transition-all duration-500"
+                  style={{ width: `${Math.min((todayNutrition.current.fat / todayNutrition.target.fat) * 100, 100)}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* 膳食纤维 */}
+            <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs">🥬</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">纤维</span>
+                </div>
+                <span className="text-xs text-gray-500">
+                  {Math.round((todayNutrition.current.fiber / todayNutrition.target.fiber) * 100)}%
+                </span>
+              </div>
+              <div className="text-lg font-bold text-green-700 mb-1">
+                {todayNutrition.current.fiber}g
+              </div>
+              <div className="w-full bg-green-200 rounded-full h-1.5">
+                <div 
+                  className="bg-green-500 rounded-full h-1.5 transition-all duration-500"
+                  style={{ width: `${Math.min((todayNutrition.current.fiber / todayNutrition.target.fiber) * 100, 100)}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* 钠 */}
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs">🧂</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">钠</span>
+                </div>
+                <span className="text-xs text-gray-500">
+                  {Math.round((todayNutrition.current.sodium / todayNutrition.target.sodium) * 100)}%
+                </span>
+              </div>
+              <div className="text-lg font-bold text-red-700 mb-1">
+                {todayNutrition.current.sodium}mg
+              </div>
+              <div className="w-full bg-red-200 rounded-full h-1.5">
+                <div 
+                  className="bg-red-500 rounded-full h-1.5 transition-all duration-500"
+                  style={{ width: `${Math.min((todayNutrition.current.sodium / todayNutrition.target.sodium) * 100, 100)}%` }}
+                ></div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Today's Meals */}
-        <div className="mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold">今日饮食</h2>
+        {/* 优化后的今日饮食 */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🍽️</span>
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">今日饮食</h2>
+                <p className="text-gray-500 text-sm">记录您的每一餐</p>
+              </div>
+            </div>
             <div className="relative">
               <button 
                 onClick={() => setSelectedMealForReport(selectedMealForReport ? null : 'menu')}
-                className="text-green-500 text-sm font-medium"
+                className="bg-green-500 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-600 transition-colors flex items-center gap-2"
               >
-                查看详报 {selectedMealForReport === 'menu' ? '▲' : '▼'}
+                <span>📊</span>
+                详细报告 {selectedMealForReport === 'menu' ? '▲' : '▼'}
               </button>
               
               {/* 餐次选择下拉菜单 */}
               {selectedMealForReport === 'menu' && (
-                <div className="absolute top-8 right-0 bg-white border rounded-lg shadow-lg p-2 z-10 min-w-[120px]">
+                <div className="absolute top-12 right-0 bg-white border border-gray-200 rounded-xl shadow-xl p-2 z-10 min-w-[140px]">
                   <button 
                     onClick={() => {
                       setSelectedMealForReport('all');
                       setShowNutritionReport(true);
                     }}
-                    className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded"
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-lg transition-colors"
                   >
-                    全天汇总
+                    📈 全天汇总
                   </button>
                   {['breakfast', 'lunch', 'dinner', 'snack'].map((mealType) => {
                     const mealsOfType = todayMeals.filter(meal => meal.mealType === mealType);
                     if (mealsOfType.length === 0) return null;
+                    
+                    const icons = { breakfast: '🌅', lunch: '☀️', dinner: '🌙', snack: '🍎' };
                     
                     return (
                       <button 
@@ -4770,9 +4920,9 @@ const App: React.FC = () => {
                           setSelectedMealForReport(mealType);
                           setShowNutritionReport(true);
                         }}
-                        className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded"
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-lg transition-colors"
                       >
-                        {mealTypeNames[mealType as keyof typeof mealTypeNames]}详报
+                        {icons[mealType as keyof typeof icons]} {mealTypeNames[mealType as keyof typeof mealTypeNames]}详报
                       </button>
                     );
                   })}
@@ -4786,60 +4936,98 @@ const App: React.FC = () => {
             const mealsOfType = todayMeals.filter(meal => meal.mealType === mealType);
             if (mealsOfType.length === 0) return null;
             
+            const mealColors = {
+              breakfast: { bg: 'from-orange-50 to-yellow-50', border: 'border-orange-200', text: 'text-orange-700', icon: '🌅' },
+              lunch: { bg: 'from-green-50 to-emerald-50', border: 'border-green-200', text: 'text-green-700', icon: '☀️' },
+              dinner: { bg: 'from-blue-50 to-indigo-50', border: 'border-blue-200', text: 'text-blue-700', icon: '🌙' },
+              snack: { bg: 'from-purple-50 to-pink-50', border: 'border-purple-200', text: 'text-purple-700', icon: '🍎' }
+            };
+            
+            const colorConfig = mealColors[mealType as keyof typeof mealColors];
+            
             return (
-              <div key={mealType} className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium text-gray-700 text-sm">
-                    {mealTypeNames[mealType as keyof typeof mealTypeNames]}
-                  </h3>
-                  <div className="text-xs text-gray-500">
-                    {mealsOfType.reduce((sum, meal) => sum + meal.nutrition.calories, 0)} 千卡
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  {mealsOfType.map((meal) => (
-                    <div 
-                      key={meal.id}
-                      className="bg-white p-3 rounded-lg shadow-sm flex items-center cursor-pointer hover:shadow-md transition-shadow"
-                    >
-                      <img src={meal.image} alt={meal.name} className="w-12 h-12 object-cover rounded-lg mr-3" />
-                      <div className="flex-1">
-                        <div className="font-medium mb-1 text-sm">{meal.name}</div>
-                        <div className="text-xs text-gray-600 mb-1">{meal.time}</div>
-                        <div className="text-xs text-gray-500">
-                          {meal.nutrition.calories}千卡 • {meal.nutrition.protein}g蛋白质
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-green-600">{meal.score}</div>
-                        <div className="text-xs text-gray-500">分</div>
+              <div key={mealType} className="mb-6 last:mb-0">
+                <div className={`bg-gradient-to-r ${colorConfig.bg} border ${colorConfig.border} rounded-2xl p-4`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">{colorConfig.icon}</span>
+                      <div>
+                        <h3 className={`font-bold ${colorConfig.text} text-lg`}>
+                          {mealTypeNames[mealType as keyof typeof mealTypeNames]}
+                        </h3>
+                        <p className="text-gray-600 text-sm">
+                          {mealsOfType.length} 项记录 • {mealsOfType.reduce((sum, meal) => sum + meal.nutrition.calories, 0)} 千卡
+                        </p>
                       </div>
                     </div>
-                  ))}
+                    <div className={`${colorConfig.text} font-bold text-right`}>
+                      <div className="text-xl">{mealsOfType.reduce((sum, meal) => sum + meal.nutrition.calories, 0)}</div>
+                      <div className="text-xs opacity-75">千卡</div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {mealsOfType.map((meal) => (
+                      <div 
+                        key={meal.id}
+                        className="bg-white/80 backdrop-blur-sm border border-white/50 p-4 rounded-xl flex items-center cursor-pointer hover:bg-white/90 hover:shadow-md transition-all duration-200"
+                      >
+                        <div className="relative">
+                          <img src={meal.image} alt={meal.name} className="w-14 h-14 object-cover rounded-xl shadow-sm" />
+                          <div className="absolute -top-1 -right-1 bg-green-500 text-white text-xs w-6 h-6 rounded-full flex items-center justify-center font-bold">
+                            {meal.score}
+                          </div>
+                        </div>
+                        
+                        <div className="flex-1 ml-4">
+                          <div className="font-semibold text-gray-800 mb-1">{meal.name}</div>
+                          <div className="text-xs text-gray-600 mb-2">{meal.time}</div>
+                          <div className="flex items-center gap-4 text-xs">
+                            <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full">
+                              🔥 {meal.nutrition.calories}千卡
+                            </span>
+                            <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
+                              💪 {meal.nutrition.protein}g
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="text-right">
+                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm mb-1">
+                            ✓
+                          </div>
+                          <div className="text-xs text-gray-500">已记录</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Health Insights */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-2xl">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <TrendingUp className="w-5 h-5 text-blue-600 mr-2" />
-              <h3 className="font-semibold text-blue-800">健康洞察</h3>
+        {/* 优化后的健康洞察 */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">💡</span>
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">智能建议</h2>
+                <p className="text-gray-500 text-sm">基于您的饮食数据</p>
+              </div>
             </div>
             
-            {/* 洞察期间选择 */}
-            <div className="flex bg-white rounded-full p-1">
+            {/* 简化的期间选择 */}
+            <div className="flex bg-gray-100 rounded-xl p-1">
               {Object.entries(insightPeriods).map(([key, name]) => (
                 <button
                   key={key}
                   onClick={() => setSelectedInsightPeriod(key)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                  className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                     selectedInsightPeriod === key 
-                      ? 'bg-blue-500 text-white' 
-                      : 'text-blue-600 hover:bg-blue-100'
+                      ? 'bg-white text-gray-800 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-800'
                   }`}
                 >
                   {name}
@@ -4848,258 +5036,257 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* 根据选择的期间显示不同内容 */}
+          {/* 简化的智能建议内容 */}
           {selectedInsightPeriod === 'today' && (
-            <div>
-              <div className="flex items-center mb-3">
-                <BarChart3 className="w-4 h-4 text-blue-600 mr-2" />
-                <span className="font-medium text-sm">今日营养评估</span>
-              </div>
-              
-              {/* Apple Watch风格圆环图 */}
-              <div className="bg-white/70 rounded-lg p-4 mb-3">
-                <div className="flex justify-center mb-4">
-                  <div className="relative w-32 h-32">
-                    {/* 圆环图容器 */}
-                    <div className="absolute inset-0">
-                      <svg width="128" height="128" className="transform -rotate-90">
-                        {/* 背景圆环 */}
-                        <circle
-                          cx="64"
-                          cy="64"
-                          r="55"
-                          stroke="#e5e7eb"
-                          strokeWidth="8"
-                          fill="transparent"
-                        />
-                        {/* 热量圆环 */}
-                        <circle
-                          cx="64"
-                          cy="64"
-                          r="55"
-                          stroke="#10b981"
-                          strokeWidth="8"
-                          fill="transparent"
-                          strokeDasharray={`${2 * Math.PI * 55}`}
-                          strokeDashoffset={`${2 * Math.PI * 55 * (1 - todayNutrition.current.calories / todayNutrition.target.calories)}`}
-                          strokeLinecap="round"
-                        />
-                        {/* 蛋白质圆环 */}
-                        <circle
-                          cx="64"
-                          cy="64"
-                          r="45"
-                          stroke="#f59e0b"
-                          strokeWidth="6"
-                          fill="transparent"
-                          strokeDasharray={`${2 * Math.PI * 45}`}
-                          strokeDashoffset={`${2 * Math.PI * 45 * (1 - todayNutrition.current.protein / todayNutrition.target.protein)}`}
-                          strokeLinecap="round"
-                        />
-                        {/* 碳水化合物圆环 */}
-                        <circle
-                          cx="64"
-                          cy="64"
-                          r="35"
-                          stroke="#3b82f6"
-                          strokeWidth="5"
-                          fill="transparent"
-                          strokeDasharray={`${2 * Math.PI * 35}`}
-                          strokeDashoffset={`${2 * Math.PI * 35 * (1 - todayNutrition.current.carbs / todayNutrition.target.carbs)}`}
-                          strokeLinecap="round"
-                        />
-                        {/* 脂肪圆环 */}
-                        <circle
-                          cx="64"
-                          cy="64"
-                          r="26"
-                          stroke="#8b5cf6"
-                          strokeWidth="4"
-                          fill="transparent"
-                          strokeDasharray={`${2 * Math.PI * 26}`}
-                          strokeDashoffset={`${2 * Math.PI * 26 * (1 - todayNutrition.current.fat / todayNutrition.target.fat)}`}
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    </div>
-                    
-                    {/* 中心文字 */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="text-lg font-bold text-gray-800">82%</div>
-                        <div className="text-xs text-gray-600">完成度</div>
-                      </div>
-                    </div>
+            <div className="space-y-4">
+              {/* 今日总结卡片 */}
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xl">✨</span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-green-800">今日表现优秀</h3>
+                    <p className="text-green-600 text-sm">营养目标完成度 85%</p>
                   </div>
                 </div>
-                
-                {/* 图例 */}
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                    <span>热量 {Math.round((todayNutrition.current.calories / todayNutrition.target.calories) * 100)}%</span>
+                <p className="text-sm text-gray-700">
+                  🎯 蛋白质摄入达标，建议晚餐增加一些蔬菜以提高膳食纤维。
+                </p>
+              </div>
+
+              {/* 今日营养分布图表 */}
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <span className="text-lg">📊</span>
+                  今日营养分布
+                </h4>
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: '碳水化合物', value: todayNutrition.current.carbs, fill: '#3B82F6' },
+                          { name: '蛋白质', value: todayNutrition.current.protein, fill: '#EF4444' },
+                          { name: '脂肪', value: todayNutrition.current.fat, fill: '#F59E0B' },
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {[
+                          { name: '碳水化合物', value: todayNutrition.current.carbs, fill: '#3B82F6' },
+                          { name: '蛋白质', value: todayNutrition.current.protein, fill: '#EF4444' },
+                          { name: '脂肪', value: todayNutrition.current.fat, fill: '#F59E0B' },
+                        ].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex justify-center space-x-4 mt-2">
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    <span className="text-xs text-gray-600">碳水</span>
                   </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-amber-500 rounded-full mr-2"></div>
-                    <span>蛋白质 {Math.round((todayNutrition.current.protein / todayNutrition.target.protein) * 100)}%</span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                    <span className="text-xs text-gray-600">蛋白质</span>
                   </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-                    <span>碳水 {Math.round((todayNutrition.current.carbs / todayNutrition.target.carbs) * 100)}%</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
-                    <span>脂肪 {Math.round((todayNutrition.current.fat / todayNutrition.target.fat) * 100)}%</span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
+                    <span className="text-xs text-gray-600">脂肪</span>
                   </div>
                 </div>
               </div>
-              
-              <p className="text-sm text-blue-700 mb-3">
-                今日摄入均衡度良好！蛋白质达标率{Math.round((todayNutrition.current.protein / todayNutrition.target.protein) * 100)}%，建议晚间补充一份低脂酸奶。
-              </p>
+
+              {/* 快速洞察网格 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
+                  <div className="text-2xl font-bold text-blue-700 mb-1">
+                    {Math.round((todayNutrition.current.calories / todayNutrition.target.calories) * 100)}%
+                  </div>
+                  <div className="text-xs text-blue-600">热量完成度</div>
+                  <div className="text-xs text-gray-500 mt-1">表现良好</div>
+                </div>
+                <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center">
+                  <div className="text-2xl font-bold text-orange-700 mb-1">
+                    {Math.round((todayNutrition.current.protein / todayNutrition.target.protein) * 100)}%
+                  </div>
+                  <div className="text-xs text-orange-600">蛋白质完成度</div>
+                  <div className="text-xs text-gray-500 mt-1">已达标</div>
+                </div>
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-center">
+                  <div className="text-2xl font-bold text-purple-700 mb-1">3</div>
+                  <div className="text-xs text-purple-600">今日餐数</div>
+                  <div className="text-xs text-gray-500 mt-1">建议4-5餐</div>
+                </div>
+                <div className="bg-pink-50 border border-pink-200 rounded-xl p-3 text-center">
+                  <div className="text-2xl font-bold text-pink-700 mb-1">92</div>
+                  <div className="text-xs text-pink-600">营养评分</div>
+                  <div className="text-xs text-gray-500 mt-1">优秀</div>
+                </div>
+              </div>
             </div>
           )}
 
           {selectedInsightPeriod === 'week' && (
-            <div>
-              <div className="flex items-center mb-3">
-                <TrendingUp className="w-4 h-4 text-purple-600 mr-2" />
-                <span className="font-medium text-sm">本周趋势分析</span>
-              </div>
-              
-              {/* 使用Recharts的折线图 */}
-              <div className="bg-white/70 rounded-lg p-3 mb-3">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-xs font-medium text-gray-600">本周营养趋势</span>
-                  <span className="text-xs text-gray-500">平均1953千卡</span>
+            <div className="space-y-4">
+              {/* 本周总结 */}
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xl">📈</span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-purple-800">本周趋势稳定</h3>
+                    <p className="text-purple-600 text-sm">平均营养分 89 分</p>
+                  </div>
                 </div>
-                
-                <div className="h-32">
+                <p className="text-sm text-gray-700">
+                  📊 蛋白质摄入呈上升趋势，连续7天坚持记录，表现优秀！
+                </p>
+              </div>
+
+              {/* 本周营养趋势图表 */}
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <span className="text-lg">📈</span>
+                  本周营养趋势
+                </h4>
+                <div className="h-48">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={weeklyTrends}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis 
-                        dataKey="day" 
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 10, fill: '#6b7280' }}
-                      />
-                      <YAxis hide />
-                      <Line 
-                        type="monotone" 
-                        dataKey="calories" 
-                        stroke="#10b981" 
-                        strokeWidth={2}
-                        dot={{ fill: '#10b981', strokeWidth: 2, r: 3 }}
-                        activeDot={{ r: 4, fill: '#10b981' }}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="protein" 
-                        stroke="#f59e0b" 
-                        strokeWidth={2}
-                        dot={{ fill: '#f59e0b', strokeWidth: 2, r: 3 }}
-                        activeDot={{ r: 4, fill: '#f59e0b' }}
-                        yAxisId="protein"
-                      />
+                    <LineChart
+                      data={[
+                        { day: '周一', 热量: 1850, 蛋白质: 85, 碳水: 220 },
+                        { day: '周二', 热量: 1920, 蛋白质: 92, 碳水: 240 },
+                        { day: '周三', 热量: 1780, 蛋白质: 78, 碳水: 200 },
+                        { day: '周四', 热量: 2050, 蛋白质: 105, 碳水: 260 },
+                        { day: '周五', 热量: 1950, 蛋白质: 88, 碳水: 235 },
+                        { day: '周六', 热量: 2100, 蛋白质: 110, 碳水: 280 },
+                        { day: '周日', 热量: 1890, 蛋白质: 95, 碳水: 225 },
+                      ]}
+                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Line type="monotone" dataKey="蛋白质" stroke="#EF4444" strokeWidth={2} dot={{ fill: '#EF4444', strokeWidth: 2 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
-                
-                {/* 图例 */}
-                <div className="flex justify-center space-x-4 mt-2">
-                  <div className="flex items-center">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
-                    <span className="text-xs text-gray-600">热量</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-2 h-2 bg-amber-500 rounded-full mr-1"></div>
-                    <span className="text-xs text-gray-600">蛋白质</span>
+                <div className="flex justify-center mt-2">
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                    <span className="text-xs text-gray-600">蛋白质摄入 (g)</span>
                   </div>
                 </div>
               </div>
-              
-              <p className="text-sm text-blue-700 mb-3">
-                本周营养摄入稳定性优秀，平均营养分89分。蛋白质摄入呈上升趋势。
-              </p>
-              
-              <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                <div className="bg-white/70 rounded-lg p-2">
-                  <div className="font-bold text-green-600">89</div>
-                  <div className="text-gray-600">平均分</div>
+
+              {/* 本周统计 */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
+                  <div className="text-xl font-bold text-green-700 mb-1">89</div>
+                  <div className="text-xs text-green-600">平均分</div>
                 </div>
-                <div className="bg-white/70 rounded-lg p-2">
-                  <div className="font-bold text-orange-600">+8%</div>
-                  <div className="text-gray-600">蛋白质↗</div>
+                <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center">
+                  <div className="text-xl font-bold text-orange-700 mb-1">+8%</div>
+                  <div className="text-xs text-orange-600">蛋白质↗</div>
                 </div>
-                <div className="bg-white/70 rounded-lg p-2">
-                  <div className="font-bold text-blue-600">7天</div>
-                  <div className="text-gray-600">连续记录</div>
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
+                  <div className="text-xl font-bold text-blue-700 mb-1">7天</div>
+                  <div className="text-xs text-blue-600">连续记录</div>
                 </div>
               </div>
             </div>
           )}
 
-          <button className="text-blue-600 text-sm font-medium mt-3 flex items-center">
-            查看详细分析 
-            <TrendingUp className="w-3 h-3 ml-1" />
-          </button>
-        </div>
-
-        {/* 水分摄入追踪 */}
-        <div className="bg-gradient-to-r from-cyan-50 to-blue-50 p-4 rounded-2xl mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center">
-              <Droplets className="w-5 h-5 text-cyan-600 mr-2" />
-              <h3 className="font-semibold text-cyan-800">今日水分</h3>
-            </div>
+          {/* 查看详细分析按钮 */}
+          <div className="mt-6 pt-4 border-t border-gray-200">
             <button 
-              onClick={() => alert('添加200ml水分记录')}
-              className="bg-cyan-500 text-white px-3 py-1 rounded-full text-xs font-medium flex items-center"
+              onClick={() => setActiveTab('detailed-analysis')}
+              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 hover:shadow-lg transition-all duration-200"
             >
-              <Plus size={12} className="mr-1" />
-              记录
+              <TrendingUp size={16} />
+              查看详细分析报告
             </button>
           </div>
-          <div className="flex items-center space-x-3">
-            <div className="flex-1">
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-cyan-700">1600ml</span>
-                <span className="text-cyan-600">/2000ml</span>
-              </div>
-              <div className="w-full bg-cyan-200 rounded-full h-2">
-                <div 
-                  className="h-2 rounded-full bg-cyan-500 transition-all duration-300"
-                  style={{ width: '80%' }}
-                ></div>
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-cyan-600">80%</div>
-              <div className="text-xs text-cyan-600">完成</div>
-            </div>
-          </div>
         </div>
 
-        {/* 智能提醒 */}
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-2xl mb-6">
-          <div className="flex items-center mb-3">
-            <Zap className="w-5 h-5 text-amber-600 mr-2" />
-            <h3 className="font-semibold text-amber-800">智能提醒</h3>
-          </div>
-          <div className="space-y-2">
-            <div className="bg-white/70 rounded-lg p-3 flex items-center">
-              <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
+        {/* 优化后的水分和提醒 */}
+        <div className="grid grid-cols-1 gap-4 mb-6">
+          {/* 水分摄入卡片 */}
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-cyan-500 rounded-full flex items-center justify-center">
+                  <Droplets className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-800">今日水分</h3>
+                  <p className="text-gray-500 text-sm">1600ml / 2000ml</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => alert('添加200ml水分记录')}
+                className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-1 transition-colors"
+              >
+                <Plus size={14} />
+                记录
+              </button>
+            </div>
+            
+            <div className="flex items-center gap-4">
               <div className="flex-1">
-                <div className="text-sm font-medium text-gray-800">距离晚餐时间还有2小时</div>
-                <div className="text-xs text-gray-600">建议现在来点健康零食补充能量</div>
+                <div className="w-full bg-cyan-100 rounded-full h-3">
+                  <div 
+                    className="h-3 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500"
+                    style={{ width: '80%' }}
+                  ></div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-cyan-600">80%</div>
+                <div className="text-xs text-gray-500">完成度</div>
               </div>
             </div>
-            <div className="bg-white/70 rounded-lg p-3 flex items-center">
-              <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-gray-800">膳食纤维已超标！</div>
-                <div className="text-xs text-gray-600">今日纤维摄入优秀，有助消化健康</div>
+          </div>
+
+          {/* 智能提醒卡片 */}
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center">
+                <Zap className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800">智能提醒</h3>
+                <p className="text-gray-500 text-sm">个性化健康建议</p>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-start gap-3">
+                <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-white text-xs">💡</span>
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-gray-800 mb-1">距离晚餐时间还有2小时</div>
+                  <div className="text-xs text-gray-600">建议现在来点健康零食补充能量</div>
+                </div>
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-3">
+                <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-white text-xs">🎉</span>
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-gray-800 mb-1">膳食纤维已超标！</div>
+                  <div className="text-xs text-gray-600">今日纤维摄入优秀，有助消化健康</div>
+                </div>
               </div>
             </div>
           </div>
@@ -5220,7 +5407,7 @@ const App: React.FC = () => {
     };
 
     return (
-      <div className="pb-20 p-6 bg-gray-50 min-h-screen">
+      <div className="pb-24 p-6 bg-gray-50 min-h-screen">
         {/* 头部 */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -5421,7 +5608,7 @@ const App: React.FC = () => {
   };
 
   const CommunityView = () => (
-    <div className="pb-20 p-6">
+    <div className="pb-24 p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">健康社区</h1>
         <div className="bg-green-100 px-3 py-1 rounded-full">
@@ -5493,7 +5680,7 @@ const App: React.FC = () => {
   );
 
   const GamificationView = () => (
-    <div className="pb-20">
+    <div className="pb-24">
       <UltraSimpleGamificationPanel className="p-6" />
     </div>
   );
@@ -5504,7 +5691,7 @@ const App: React.FC = () => {
     const recommendedPlans = getRecommendedPlans(healthProfile);
 
     return (
-      <div className="pb-20">
+      <div className="pb-24">
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-6 rounded-b-3xl">
           <div className="flex justify-between items-center mb-4">
@@ -5749,7 +5936,7 @@ const App: React.FC = () => {
     const [activeNutritionistTab, setActiveNutritionistTab] = useState<'consultations' | 'premium_plans'>('consultations');
     
     return (
-      <div className="pb-20 p-6 space-y-6">
+      <div className="pb-24 p-6 space-y-6">
         {/* 页面标题 */}
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">专业营养师服务</h1>
@@ -5982,7 +6169,7 @@ const App: React.FC = () => {
   };
 
   const ProfileView = () => (
-    <div className="pb-20 p-6 bg-gray-50 min-h-screen">
+    <div className="pb-24 p-6 bg-gray-50 min-h-screen">
       {/* 用户信息卡片 */}
       <div className="bg-gradient-to-br from-green-500 to-blue-600 rounded-2xl p-6 text-white mb-6 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
@@ -6673,6 +6860,224 @@ const App: React.FC = () => {
     );
   };
 
+  // 详细分析报告页面
+  const DetailedAnalysisView = () => (
+    <div className="pb-24 bg-gray-50 min-h-screen">
+      {/* 头部 */}
+      <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-purple-700 text-white">
+        <div className="p-6 pt-12">
+          <div className="flex items-center justify-between mb-4">
+            <button 
+              onClick={() => setActiveTab('home')}
+              className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <h1 className="text-xl font-bold">详细分析报告</h1>
+            <div className="w-10 h-10"></div>
+          </div>
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-2">营养全面分析</h2>
+            <p className="text-blue-100">基于您的饮食数据生成的专业报告</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6 space-y-6">
+        {/* 营养摄入总览 */}
+        <div className="bg-white rounded-2xl shadow-lg p-6">
+          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="text-xl">📊</span>
+            营养摄入总览
+          </h3>
+          
+          {/* 热量vs目标对比图 */}
+          <div className="mb-6">
+            <h4 className="font-semibold text-gray-700 mb-3">每日热量对比</h4>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={[
+                    { day: '1/8', 实际: 1850, 目标: 2000 },
+                    { day: '1/9', 实际: 1920, 目标: 2000 },
+                    { day: '1/10', 实际: 1780, 目标: 2000 },
+                    { day: '1/11', 实际: 2050, 目标: 2000 },
+                    { day: '1/12', 实际: 1950, 目标: 2000 },
+                    { day: '1/13', 实际: 2100, 目标: 2000 },
+                    { day: '1/14', 实际: 1890, 目标: 2000 },
+                  ]}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Line type="monotone" dataKey="实际" stroke="#3B82F6" strokeWidth={3} dot={{ fill: '#3B82F6', strokeWidth: 2 }} />
+                  <Line type="monotone" dataKey="目标" stroke="#EF4444" strokeWidth={2} strokeDasharray="5 5" dot={{ fill: '#EF4444', strokeWidth: 2 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-center space-x-6 mt-2">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span className="text-xs text-gray-600">实际摄入</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-red-500 rounded"></div>
+                <span className="text-xs text-gray-600">目标值</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 三大营养素分析 */}
+        <div className="bg-white rounded-2xl shadow-lg p-6">
+          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="text-xl">🥗</span>
+            三大营养素分析
+          </h3>
+          
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="text-center p-4 bg-blue-50 rounded-xl">
+              <div className="text-2xl font-bold text-blue-600 mb-1">
+                {Math.round((todayNutrition.current.carbs / todayNutrition.target.carbs) * 100)}%
+              </div>
+              <div className="text-sm text-blue-600 font-medium">碳水化合物</div>
+              <div className="text-xs text-gray-500 mt-1">{todayNutrition.current.carbs}g / {todayNutrition.target.carbs}g</div>
+            </div>
+            <div className="text-center p-4 bg-red-50 rounded-xl">
+              <div className="text-2xl font-bold text-red-600 mb-1">
+                {Math.round((todayNutrition.current.protein / todayNutrition.target.protein) * 100)}%
+              </div>
+              <div className="text-sm text-red-600 font-medium">蛋白质</div>
+              <div className="text-xs text-gray-500 mt-1">{todayNutrition.current.protein}g / {todayNutrition.target.protein}g</div>
+            </div>
+            <div className="text-center p-4 bg-amber-50 rounded-xl">
+              <div className="text-2xl font-bold text-amber-600 mb-1">
+                {Math.round((todayNutrition.current.fat / todayNutrition.target.fat) * 100)}%
+              </div>
+              <div className="text-sm text-amber-600 font-medium">脂肪</div>
+              <div className="text-xs text-gray-500 mt-1">{todayNutrition.current.fat}g / {todayNutrition.target.fat}g</div>
+            </div>
+          </div>
+
+          {/* 营养素趋势图 */}
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={[
+                  { day: '1/8', 碳水: 220, 蛋白质: 85, 脂肪: 65 },
+                  { day: '1/9', 碳水: 240, 蛋白质: 92, 脂肪: 70 },
+                  { day: '1/10', 碳水: 200, 蛋白质: 78, 脂肪: 55 },
+                  { day: '1/11', 碳水: 260, 蛋白质: 105, 脂肪: 75 },
+                  { day: '1/12', 碳水: 235, 蛋白质: 88, 脂肪: 68 },
+                  { day: '1/13', 碳水: 280, 蛋白质: 110, 脂肪: 80 },
+                  { day: '1/14', 碳水: 225, 蛋白质: 95, 脂肪: 70 },
+                ]}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Line type="monotone" dataKey="碳水" stroke="#3B82F6" strokeWidth={2} dot={{ fill: '#3B82F6', strokeWidth: 2 }} />
+                <Line type="monotone" dataKey="蛋白质" stroke="#EF4444" strokeWidth={2} dot={{ fill: '#EF4444', strokeWidth: 2 }} />
+                <Line type="monotone" dataKey="脂肪" stroke="#F59E0B" strokeWidth={2} dot={{ fill: '#F59E0B', strokeWidth: 2 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex justify-center space-x-6 mt-2">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <span className="text-xs text-gray-600">碳水化合物</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+              <span className="text-xs text-gray-600">蛋白质</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
+              <span className="text-xs text-gray-600">脂肪</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 健康评分与建议 */}
+        <div className="bg-white rounded-2xl shadow-lg p-6">
+          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="text-xl">🎯</span>
+            健康评分与建议
+          </h3>
+          
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h4 className="font-bold text-green-800">整体评分</h4>
+                <p className="text-green-600 text-sm">基于营养均衡度</p>
+              </div>
+              <div className="text-4xl font-bold text-green-600">92</div>
+            </div>
+            <div className="w-full bg-green-200 rounded-full h-3">
+              <div className="h-3 rounded-full bg-gradient-to-r from-green-500 to-emerald-500" style={{ width: '92%' }}></div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <h4 className="font-semibold text-blue-800 mb-2">💪 优势表现</h4>
+              <ul className="text-sm text-gray-700 space-y-1">
+                <li>• 蛋白质摄入充足，有助肌肉健康</li>
+                <li>• 维生素C摄入超标，免疫力强</li>
+                <li>• 膳食纤维充足，消化系统健康</li>
+              </ul>
+            </div>
+            
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <h4 className="font-semibold text-amber-800 mb-2">⚠️ 需要改进</h4>
+              <ul className="text-sm text-gray-700 space-y-1">
+                <li>• 建议增加深色蔬菜摄入</li>
+                <li>• 钙质摄入略显不足</li>
+                <li>• 可适当增加坚果类食物</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* 个性化建议 */}
+        <div className="bg-white rounded-2xl shadow-lg p-6">
+          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="text-xl">💡</span>
+            个性化建议
+          </h3>
+          
+          <div className="space-y-4">
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-sm">🌟</span>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-purple-800 mb-1">明日饮食建议</h4>
+                  <p className="text-sm text-gray-700">建议早餐增加全谷物，午餐搭配深色蔬菜，晚餐控制油脂摄入。</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-sm">🥗</span>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-emerald-800 mb-1">推荐食材</h4>
+                  <p className="text-sm text-gray-700">牛奶、酸奶、芝麻、杏仁等富含钙质的食物；菠菜、西兰花等深色蔬菜。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   const tabs = [
     { id: 'home', name: '首页', icon: Home },
     { id: 'recipes', name: '菜谱', icon: BookOpen },
@@ -6692,17 +7097,18 @@ const App: React.FC = () => {
       {activeTab === 'gamification' && <GamificationView />}
       {activeTab === 'community' && <CommunityView />}
       {activeTab === 'profile' && <ProfileView />}
+      {activeTab === 'detailed-analysis' && <DetailedAnalysisView />}
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
-        <div className="flex items-center justify-around py-2">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-lg">
+        <div className="flex items-center justify-around py-2 safe-area-inset-bottom">
           {tabs.map((tab) => {
             const IconComponent = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-col items-center py-2 px-4 ${
+                className={`flex flex-col items-center py-2 px-4 transition-colors ${
                   activeTab === tab.id ? 'text-green-600' : 'text-gray-400'
                 }`}
               >
