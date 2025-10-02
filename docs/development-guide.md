@@ -1,4 +1,4 @@
-# 开发指南 - 食刻 (NutriBit)
+# 开发指南 - 福宝 (NutriBit)
 
 ## 🚀 快速开始
 
@@ -48,7 +48,7 @@ vim .env.local
 **环境变量说明:**
 ```env
 # 应用配置
-VITE_APP_TITLE=食刻
+VITE_APP_TITLE=福宝
 VITE_APP_VERSION=1.0.0
 VITE_APP_ENV=development
 
@@ -673,8 +673,8 @@ npm run test Button.test.tsx
 ```json
 // public/manifest.json
 {
-  "name": "食刻 - 智能营养管理",
-  "short_name": "食刻",
+  "name": "福宝 - 智能营养管理",
+  "short_name": "福宝",
   "description": "基于AI的个性化营养健康管理应用",
   "theme_color": "#3B82F6",
   "background_color": "#ffffff",

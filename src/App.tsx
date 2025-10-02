@@ -93,6 +93,7 @@ interface HealthProfile {
   activityLevel: 'light' | 'moderate' | 'heavy';
   healthGoal: 'weight_loss' | 'muscle_gain' | 'maintain_health' | 'special_nutrition';
   specialNutritionFocus?: 'low_sodium' | 'high_protein' | 'low_carb' | 'high_fiber';
+  chronicDiseases?: string[]; // 慢性病列表
   createdAt: string;
   updatedAt: string;
 }
@@ -1812,7 +1813,8 @@ const App: React.FC = () => {
       weight: 65,
       activityLevel: 'moderate',
       healthGoal: 'maintain_health',
-      specialNutritionFocus: undefined
+      specialNutritionFocus: undefined,
+      chronicDiseases: []
     });
 
     const handleSave = () => {
@@ -1831,6 +1833,7 @@ const App: React.FC = () => {
         activityLevel: formData.activityLevel!,
         healthGoal: formData.healthGoal!,
         specialNutritionFocus: formData.specialNutritionFocus,
+        chronicDiseases: formData.chronicDiseases,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -2013,6 +2016,79 @@ const App: React.FC = () => {
               </div>
             )}
 
+            {/* 慢性病选择 */}
+            <div>
+              <h3 className="font-semibold text-gray-800 mb-2">慢性病记录</h3>
+              <p className="text-sm text-gray-500 mb-4">如患有慢性病，请选择（可多选）</p>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: 'diabetes', label: '糖尿病', icon: '🩸' },
+                  { value: 'hypertension', label: '高血压', icon: '❤️' },
+                  { value: 'hyperlipidemia', label: '高血脂', icon: '💧' },
+                  { value: 'heart_disease', label: '心脏病', icon: '💗' },
+                  { value: 'gout', label: '痛风', icon: '🦴' },
+                  { value: 'kidney_disease', label: '肾病', icon: '🫘' },
+                  { value: 'liver_disease', label: '肝病', icon: '🫀' },
+                  { value: 'osteoporosis', label: '骨质疏松', icon: '🦴' },
+                  { value: 'thyroid', label: '甲状腺疾病', icon: '🔬' },
+                  { value: 'anemia', label: '贫血', icon: '🩸' },
+                  { value: 'gastritis', label: '胃炎/胃病', icon: '🫄' },
+                  { value: 'others', label: '其他', icon: '📋' }
+                ].map((disease) => {
+                  const isSelected = formData.chronicDiseases?.includes(disease.value);
+                  return (
+                    <button
+                      key={disease.value}
+                      onClick={() => {
+                        const currentDiseases = formData.chronicDiseases || [];
+                        if (isSelected) {
+                          // 取消选择
+                          setFormData({
+                            ...formData,
+                            chronicDiseases: currentDiseases.filter(d => d !== disease.value)
+                          });
+                        } else {
+                          // 添加选择
+                          setFormData({
+                            ...formData,
+                            chronicDiseases: [...currentDiseases, disease.value]
+                          });
+                        }
+                      }}
+                      className={`p-3 rounded-lg border-2 text-left transition-colors ${
+                        isSelected
+                          ? 'border-orange-500 bg-orange-50'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center">
+                        <span className="text-lg mr-2">{disease.icon}</span>
+                        <span className="text-sm font-medium">{disease.label}</span>
+                      </div>
+                      {isSelected && (
+                        <div className="mt-1">
+                          <CheckCircle className="w-4 h-4 text-orange-500" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              {formData.chronicDiseases && formData.chronicDiseases.length > 0 && (
+                <div className="mt-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                  <div className="flex items-start">
+                    <Stethoscope className="w-5 h-5 text-orange-600 mr-2 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-orange-900">温馨提醒</p>
+                      <p className="text-xs text-orange-700 mt-1">
+                        系统将根据您的健康状况，为您提供更加个性化的营养建议和饮食指导。建议定期咨询医生和营养师。
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* 保存按钮 */}
             <button
               onClick={handleSave}
@@ -2111,6 +2187,50 @@ const App: React.FC = () => {
               )}
             </div>
           </div>
+
+          {/* 慢性病记录 */}
+          {healthProfile.chronicDiseases && healthProfile.chronicDiseases.length > 0 && (
+            <div className="mb-6">
+              <h4 className="font-semibold mb-3">慢性病记录</h4>
+              <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+                <div className="flex items-start mb-3">
+                  <Stethoscope className="w-5 h-5 text-orange-600 mr-2 mt-0.5" />
+                  <span className="text-sm font-medium text-orange-900">已记录的慢性病</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {healthProfile.chronicDiseases.map((disease) => {
+                    const diseaseLabels: Record<string, { label: string; icon: string }> = {
+                      'diabetes': { label: '糖尿病', icon: '🩸' },
+                      'hypertension': { label: '高血压', icon: '❤️' },
+                      'hyperlipidemia': { label: '高血脂', icon: '💧' },
+                      'heart_disease': { label: '心脏病', icon: '💗' },
+                      'gout': { label: '痛风', icon: '🦴' },
+                      'kidney_disease': { label: '肾病', icon: '🫘' },
+                      'liver_disease': { label: '肝病', icon: '🫀' },
+                      'osteoporosis': { label: '骨质疏松', icon: '🦴' },
+                      'thyroid': { label: '甲状腺疾病', icon: '🔬' },
+                      'anemia': { label: '贫血', icon: '🩸' },
+                      'gastritis': { label: '胃炎/胃病', icon: '🫄' },
+                      'others': { label: '其他', icon: '📋' }
+                    };
+                    const diseaseInfo = diseaseLabels[disease] || { label: disease, icon: '📋' };
+                    return (
+                      <div
+                        key={disease}
+                        className="inline-flex items-center px-3 py-1.5 bg-white rounded-full border border-orange-300"
+                      >
+                        <span className="mr-1">{diseaseInfo.icon}</span>
+                        <span className="text-sm font-medium text-gray-800">{diseaseInfo.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-3 text-xs text-orange-700">
+                  💡 系统已根据您的健康状况调整营养建议，建议定期咨询专业医生和营养师。
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* 代谢信息 */}
           <div className="mb-6">
@@ -4412,7 +4532,7 @@ const App: React.FC = () => {
               <span className="text-xl">🥗</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold">食刻</h1>
+              <h1 className="text-xl font-bold">福宝</h1>
               <p className="text-green-100 text-xs">智能营养管家</p>
             </div>
           </div>

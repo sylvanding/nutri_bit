@@ -1,8 +1,8 @@
-# API接口文档 - 食刻 (NutriBit)
+# API接口文档 - 福宝 (NutriBit)
 
 ## 📋 API概览
 
-食刻后端采用RESTful API设计，提供统一的接口标准和响应格式。所有API均采用HTTPS协议，支持JSON格式的请求和响应。
+福宝后端采用RESTful API设计，提供统一的接口标准和响应格式。所有API均采用HTTPS协议，支持JSON格式的请求和响应。
 
 ### 基础信息
 - **Base URL**: `https://api.nutribit.com/v1`

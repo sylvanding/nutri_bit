@@ -1,4 +1,4 @@
-# 用户体验设计 - 食刻 (NutriBit)
+# 用户体验设计 - 福宝 (NutriBit)
 
 ## 🎯 用户体验愿景
 
@@ -371,7 +371,7 @@ const cardShadows = {
 #### 首页 - 今日概览
 ```
 ┌─────────────────────────────────┐
-│ ⚡ 食刻        🔔 📊 👤         │
+│ ⚡ 福宝        🔔 📊 👤         │
 ├─────────────────────────────────┤
 │ 👋 早上好，张三                   │
 │ 今日营养摄入 • 65% 已完成          │
@@ -453,7 +453,7 @@ const cardShadows = {
 ```typescript
 interface OnboardingSteps {
   welcome: {
-    title: "欢迎来到食刻";
+    title: "欢迎来到福宝";
     subtitle: "AI智能营养管理，让健康更简单";
     action: "开始体验";
   };
