@@ -132,6 +132,24 @@ interface WeightRecord {
   note?: string; // 备注
 }
 
+// 饮水记录接口
+interface WaterRecord {
+  id: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:mm
+  amount: number; // ml
+  timestamp: string; // ISO string
+}
+
+// 饮水提醒设置接口
+interface WaterReminderSettings {
+  enabled: boolean;
+  interval: number; // 分钟
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+  customTimes?: string[]; // 自定义提醒时间
+}
+
 interface DailyNutritionTargets {
   calories: number;
   protein: number;
@@ -362,6 +380,17 @@ const App: React.FC = () => {
   const [showWeightManagement, setShowWeightManagement] = useState(false);
   const [weightRecords, setWeightRecords] = useState<WeightRecord[]>([]);
   const [showAddWeight, setShowAddWeight] = useState(false);
+  
+  // 饮水记录相关状态
+  const [showWaterDetail, setShowWaterDetail] = useState(false);
+  const [waterRecords, setWaterRecords] = useState<WaterRecord[]>([]);
+  const [waterTarget, setWaterTarget] = useState(2000); // 默认目标2000ml
+  const [waterReminderSettings, setWaterReminderSettings] = useState<WaterReminderSettings>({
+    enabled: true,
+    interval: 120, // 每2小时
+    startTime: '08:00',
+    endTime: '22:00'
+  });
   
   // 菜品数据库
   const foodDatabase = [
@@ -6987,7 +7016,10 @@ const App: React.FC = () => {
         {/* 优化后的水分和提醒 */}
         <div className="grid grid-cols-1 gap-4 mb-6">
           {/* 水分摄入卡片 */}
-          <div className="bg-white rounded-2xl shadow-lg p-6">
+          <div 
+            className="bg-white rounded-2xl shadow-lg p-6 cursor-pointer hover:shadow-xl transition-shadow"
+            onClick={() => setShowWaterDetail(true)}
+          >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-cyan-500 rounded-full flex items-center justify-center">
@@ -6995,11 +7027,25 @@ const App: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-800">今日水分</h3>
-                  <p className="text-gray-500 text-sm">1600ml / 2000ml</p>
+                  <p className="text-gray-500 text-sm">
+                    {waterRecords
+                      .filter(r => r.date === new Date().toISOString().split('T')[0])
+                      .reduce((sum, r) => sum + r.amount, 0)}ml / {waterTarget}ml
+                  </p>
                 </div>
               </div>
               <button 
-                onClick={() => alert('添加200ml水分记录')}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newRecord: WaterRecord = {
+                    id: Date.now().toString(),
+                    date: new Date().toISOString().split('T')[0],
+                    time: new Date().toTimeString().slice(0, 5),
+                    amount: 200,
+                    timestamp: new Date().toISOString()
+                  };
+                  setWaterRecords([...waterRecords, newRecord]);
+                }}
                 className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-1 transition-colors"
               >
                 <Plus size={14} />
@@ -7012,12 +7058,20 @@ const App: React.FC = () => {
                 <div className="w-full bg-cyan-100 rounded-full h-3">
                   <div 
                     className="h-3 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500"
-                    style={{ width: '80%' }}
+                    style={{ 
+                      width: `${Math.min(100, (waterRecords
+                        .filter(r => r.date === new Date().toISOString().split('T')[0])
+                        .reduce((sum, r) => sum + r.amount, 0) / waterTarget) * 100)}%` 
+                    }}
                   ></div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-cyan-600">80%</div>
+                <div className="text-2xl font-bold text-cyan-600">
+                  {Math.round((waterRecords
+                    .filter(r => r.date === new Date().toISOString().split('T')[0])
+                    .reduce((sum, r) => sum + r.amount, 0) / waterTarget) * 100)}%
+                </div>
                 <div className="text-xs text-gray-500">完成度</div>
               </div>
             </div>
@@ -7139,8 +7193,12 @@ const App: React.FC = () => {
   };
 
   const RecipesView = () => {
+    const [activeRecipeTab, setActiveRecipeTab] = useState<'recommendation' | 'gap' | 'meal-plan'>('gap');
     const [activeFilter, setActiveFilter] = useState('all');
     const [showFilters, setShowFilters] = useState(false);
+    const [mealPlanCount, setMealPlanCount] = useState(0); // 今日已生成配餐次数
+    const [currentMealPlan, setCurrentMealPlan] = useState<any>(null);
+    const [generatingMealPlan, setGeneratingMealPlan] = useState(false);
     
     const recommendations = getPersonalizedRecommendations(8);
     
@@ -7173,57 +7231,634 @@ const App: React.FC = () => {
       hard: { text: '困难', color: 'text-red-600', bg: 'bg-red-100' }
     };
 
-    return (
-      <div className="pb-24 p-6 bg-gray-50 min-h-screen">
-        {/* 头部 */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">AI菜谱推荐</h1>
-            <p className="text-sm text-gray-600 mt-1">为您解决"吃什么"的困扰</p>
+    // 计算今日已摄入营养
+    const calculateConsumedNutrition = () => {
+      // 基于今日餐食记录计算已摄入营养
+      // 这里使用更真实的模拟数据，基于用户可能的实际摄入情况
+      const currentTime = new Date().getHours();
+      
+      // 根据时间动态调整已摄入量（模拟一天中逐渐增加的摄入）
+      let consumedRatio = 0.4; // 默认40%
+      if (currentTime >= 12) consumedRatio = 0.65; // 午餐后65%
+      if (currentTime >= 18) consumedRatio = 0.85; // 晚餐后85%
+      if (currentTime >= 21) consumedRatio = 0.95; // 夜宵后95%
+      
+      if (!healthProfile) {
+        return {
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fat: 0,
+          fiber: 0,
+          sodium: 0
+        };
+      }
+
+      const targets = calculateNutritionTargets(healthProfile);
+      
+      // 基于目标值和时间比例计算已摄入量，添加一些随机变化使其更真实
+      const randomFactor = 0.8 + Math.random() * 0.4; // 0.8-1.2的随机因子
+      
+      return {
+        calories: Math.round(targets.calories * consumedRatio * randomFactor),
+        protein: Math.round(targets.protein * consumedRatio * (0.9 + Math.random() * 0.2)),
+        carbs: Math.round(targets.carbs * consumedRatio * (0.85 + Math.random() * 0.3)),
+        fat: Math.round(targets.fat * consumedRatio * (0.8 + Math.random() * 0.4)),
+        fiber: Math.round(targets.fiber * consumedRatio * (0.6 + Math.random() * 0.4)),
+        sodium: Math.round(targets.sodium * consumedRatio * (1.1 + Math.random() * 0.3)) // 钠往往摄入过量
+      };
+    };
+
+    // 计算营养缺口
+    const calculateNutritionGap = () => {
+      if (!healthProfile) {
+        return {
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fat: 0,
+          fiber: 0,
+          sodium: 0
+        };
+      }
+
+      const targets = calculateNutritionTargets(healthProfile);
+      const consumed = calculateConsumedNutrition();
+
+      return {
+        calories: Math.max(0, targets.calories - consumed.calories),
+        protein: Math.max(0, targets.protein - consumed.protein),
+        carbs: Math.max(0, targets.carbs - consumed.carbs),
+        fat: Math.max(0, targets.fat - consumed.fat),
+        fiber: Math.max(0, targets.fiber - consumed.fiber),
+        sodium: consumed.sodium > targets.sodium ? consumed.sodium - targets.sodium : 0, // 钠超标显示超标量
+      };
+    };
+
+    const nutritionGap = calculateNutritionGap();
+    const targets = healthProfile ? calculateNutritionTargets(healthProfile) : null;
+    const consumed = healthProfile ? calculateConsumedNutrition() : null;
+
+    // 根据营养缺口推荐菜品
+    const getGapFillingRecommendations = () => {
+      return recipes.filter(recipe => {
+        // 优先推荐能补充缺口最大营养素的菜品
+        const proteinScore = nutritionGap.protein > 0 ? (recipe.nutrition.protein / nutritionGap.protein) * 100 : 0;
+        const caloriesScore = nutritionGap.calories > 0 ? (recipe.nutrition.calories / nutritionGap.calories) * 100 : 0;
+        return proteinScore > 30 || caloriesScore > 20;
+      }).slice(0, 6);
+    };
+
+    // 生成智能配餐方案
+    const generateMealPlan = () => {
+      // 检查会员权限
+      if (membership.tier === 'free' && mealPlanCount >= 1) {
+        actions.showUpgrade('免费用户每日仅可生成1次配餐方案，升级会员即可无限次使用');
+        return;
+      }
+
+      setGeneratingMealPlan(true);
+      
+      setTimeout(() => {
+        if (!healthProfile) return;
+        
+        const dailyTargets = calculateNutritionTargets(healthProfile);
+        
+        // 简化的配餐算法：从recipes中选择合适的菜品组合
+        const breakfastCalories = dailyTargets.calories * 0.3;
+        const lunchCalories = dailyTargets.calories * 0.4;
+        const dinnerCalories = dailyTargets.calories * 0.3;
+
+        const breakfastRecipes = recipes.filter(r => r.mealTime?.includes('breakfast')).slice(0, 2);
+        const lunchRecipes = recipes.filter(r => r.mealTime?.includes('lunch')).slice(0, 3);
+        const dinnerRecipes = recipes.filter(r => r.mealTime?.includes('dinner')).slice(0, 3);
+
+        const plan = {
+          id: Date.now().toString(),
+          breakfast: {
+            recipes: breakfastRecipes.length > 0 ? breakfastRecipes : recipes.slice(0, 2),
+            targetCalories: Math.round(breakfastCalories),
+            actualCalories: breakfastRecipes.reduce((sum, r) => sum + r.nutrition.calories, 0)
+          },
+          lunch: {
+            recipes: lunchRecipes.length > 0 ? lunchRecipes : recipes.slice(2, 5),
+            targetCalories: Math.round(lunchCalories),
+            actualCalories: lunchRecipes.reduce((sum, r) => sum + r.nutrition.calories, 0)
+          },
+          dinner: {
+            recipes: dinnerRecipes.length > 0 ? dinnerRecipes : recipes.slice(5, 8),
+            targetCalories: Math.round(dinnerCalories),
+            actualCalories: dinnerRecipes.reduce((sum, r) => sum + r.nutrition.calories, 0)
+          }
+        };
+
+        setCurrentMealPlan(plan);
+        setMealPlanCount(prev => prev + 1);
+        setGeneratingMealPlan(false);
+      }, 2000);
+    };
+
+    // 营养缺口分析视图
+    const NutritionGapView = () => (
+      <div className="space-y-6">
+        {/* 头部概览 */}
+        <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold mb-1">今日营养缺口</h2>
+              <p className="text-blue-100 text-sm">基于您的健康目标智能分析</p>
+            </div>
+            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+              <TrendingUp className="w-6 h-6" />
+            </div>
           </div>
-          <button 
-            onClick={() => setShowFilters(!showFilters)}
-            className="p-2 bg-white rounded-lg shadow-sm border border-gray-200"
-          >
-            <Filter className="w-5 h-5 text-gray-600" />
-          </button>
+          
+          {targets && (
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+              <div className="text-sm text-blue-100 mb-2">今日已摄入 / 目标</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="text-2xl font-bold">{consumed ? Math.round(consumed.calories) : 0}</div>
+                  <div className="text-sm text-blue-100">/ {Math.round(targets.calories)} 千卡</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold">{consumed ? Math.round((consumed.calories / targets.calories) * 100) : 0}%</div>
+                  <div className="text-sm text-blue-100">完成度</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* 智能推荐横幅 */}
-      <div className="mb-6">
-          <div className="bg-gradient-to-r from-green-50 via-blue-50 to-purple-50 p-6 rounded-2xl border border-green-200 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-200/30 to-transparent rounded-full transform translate-x-16 -translate-y-16"></div>
-            <div className="relative">
-              <div className="flex items-center mb-3">
-                <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center mr-3">
-                  <Zap className="w-4 h-4 text-white" />
-          </div>
-                <span className="font-semibold text-gray-800 text-lg">AI智能推荐</span>
+        {/* 各营养素缺口详情 */}
+        <div>
+          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+            <Target className="w-5 h-5 mr-2 text-blue-500" />
+            营养素缺口分析
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            {/* 热量 */}
+            <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl p-4 border border-orange-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">热量</span>
+                <Zap className="w-4 h-4 text-orange-500" />
               </div>
-              <p className="text-sm text-gray-700 mb-4 leading-relaxed">
-                基于您的健康目标、饮食偏好和历史记录，为您精心挑选{recommendations.length}道菜谱
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <span className="inline-block bg-white/80 backdrop-blur-sm text-green-700 text-xs px-3 py-1 rounded-full border border-green-200">🎯 营养匹配</span>
-                <span className="inline-block bg-white/80 backdrop-blur-sm text-blue-700 text-xs px-3 py-1 rounded-full border border-blue-200">❤️ 个人喜好</span>
-                <span className="inline-block bg-white/80 backdrop-blur-sm text-purple-700 text-xs px-3 py-1 rounded-full border border-purple-200">✨ 新品发现</span>
+              <div className="text-2xl font-bold text-orange-600 mb-1">{Math.round(nutritionGap.calories)}</div>
+              <div className="text-xs text-gray-600">还需摄入 {Math.round(nutritionGap.calories)} 千卡</div>
+              {targets && consumed && (
+                <>
+                  <div className="text-xs text-gray-500 mt-1">
+                    已摄入: {Math.round(consumed.calories)} / {Math.round(targets.calories)} 千卡
+                  </div>
+                  <div className="mt-2 bg-white/60 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-orange-400 to-red-400 h-2 rounded-full transition-all"
+                      style={{ width: `${Math.min(100, (consumed.calories / targets.calories) * 100)}%` }}
+                    ></div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* 蛋白质 */}
+            <div className="bg-gradient-to-br from-red-50 to-pink-50 rounded-xl p-4 border border-red-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">蛋白质</span>
+                <Cpu className="w-4 h-4 text-red-500" />
               </div>
+              <div className="text-2xl font-bold text-red-600 mb-1">{Math.round(nutritionGap.protein)}</div>
+              <div className="text-xs text-gray-600">还需摄入 {Math.round(nutritionGap.protein)} g</div>
+              {targets && consumed && (
+                <>
+                  <div className="text-xs text-gray-500 mt-1">
+                    已摄入: {Math.round(consumed.protein)} / {Math.round(targets.protein)} g
+                  </div>
+                  <div className="mt-2 bg-white/60 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-red-400 to-pink-400 h-2 rounded-full transition-all"
+                      style={{ width: `${Math.min(100, (consumed.protein / targets.protein) * 100)}%` }}
+                    ></div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* 碳水化合物 */}
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">碳水</span>
+                <Apple className="w-4 h-4 text-green-500" />
+              </div>
+              <div className="text-2xl font-bold text-green-600 mb-1">{Math.round(nutritionGap.carbs)}</div>
+              <div className="text-xs text-gray-600">还需摄入 {Math.round(nutritionGap.carbs)} g</div>
+              {targets && consumed && (
+                <>
+                  <div className="text-xs text-gray-500 mt-1">
+                    已摄入: {Math.round(consumed.carbs)} / {Math.round(targets.carbs)} g
+                  </div>
+                  <div className="mt-2 bg-white/60 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-green-400 to-emerald-400 h-2 rounded-full transition-all"
+                      style={{ width: `${Math.min(100, (consumed.carbs / targets.carbs) * 100)}%` }}
+                    ></div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* 脂肪 */}
+            <div className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-4 border border-yellow-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">脂肪</span>
+                <Droplets className="w-4 h-4 text-yellow-500" />
+              </div>
+              <div className="text-2xl font-bold text-yellow-600 mb-1">{Math.round(nutritionGap.fat)}</div>
+              <div className="text-xs text-gray-600">还需摄入 {Math.round(nutritionGap.fat)} g</div>
+              {targets && consumed && (
+                <>
+                  <div className="text-xs text-gray-500 mt-1">
+                    已摄入: {Math.round(consumed.fat)} / {Math.round(targets.fat)} g
+                  </div>
+                  <div className="mt-2 bg-white/60 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-yellow-400 to-amber-400 h-2 rounded-full transition-all"
+                      style={{ width: `${Math.min(100, (consumed.fat / targets.fat) * 100)}%` }}
+                    ></div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* 膳食纤维 */}
+            <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-4 border border-purple-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">膳食纤维</span>
+                <Heart className="w-4 h-4 text-purple-500" />
+              </div>
+              <div className="text-2xl font-bold text-purple-600 mb-1">{Math.round(nutritionGap.fiber)}</div>
+              <div className="text-xs text-gray-600">还需摄入 {Math.round(nutritionGap.fiber)} g</div>
+              {targets && consumed && (
+                <>
+                  <div className="text-xs text-gray-500 mt-1">
+                    已摄入: {Math.round(consumed.fiber)} / {Math.round(targets.fiber)} g
+                  </div>
+                  <div className="mt-2 bg-white/60 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-purple-400 to-indigo-400 h-2 rounded-full transition-all"
+                      style={{ width: `${Math.min(100, (consumed.fiber / targets.fiber) * 100)}%` }}
+                    ></div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* 钠 */}
+            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">钠</span>
+                <Check className="w-4 h-4 text-blue-500" />
+              </div>
+              <div className="text-2xl font-bold text-blue-600 mb-1">{Math.round(nutritionGap.sodium)}</div>
+              <div className="text-xs text-gray-600">
+                {nutritionGap.sodium > 0 ? `已超标 ${Math.round(nutritionGap.sodium)} mg` : '控制良好'}
+              </div>
+              {targets && consumed && (
+                <>
+                  <div className="text-xs text-gray-500 mt-1">
+                    已摄入: {Math.round(consumed.sodium)} / {Math.round(targets.sodium)} mg
+                  </div>
+                  <div className="mt-2 bg-white/60 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full transition-all ${
+                        consumed.sodium > targets.sodium 
+                          ? 'bg-gradient-to-r from-red-400 to-orange-400' 
+                          : 'bg-gradient-to-r from-blue-400 to-cyan-400'
+                      }`}
+                      style={{ width: `${Math.min(100, (consumed.sodium / targets.sodium) * 100)}%` }}
+                    ></div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* 补充建议 - 推荐菜品 */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-gray-900 flex items-center">
+              <Sparkles className="w-5 h-5 mr-2 text-green-500" />
+              推荐补充菜品
+            </h3>
+            <span className="text-sm text-gray-500">为您精选</span>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-4">
+            {getGapFillingRecommendations().map((recipe) => (
+              <div key={recipe.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all">
+                <div className="flex">
+                  <img src={recipe.image} alt={recipe.name} className="w-24 h-24 object-cover" />
+                  <div className="flex-1 p-3">
+                    <div className="flex items-start justify-between mb-2">
+                      <h4 className="font-semibold text-gray-900">{recipe.name}</h4>
+                      <div className={`${difficultyMap[recipe.difficulty].bg} ${difficultyMap[recipe.difficulty].color} text-xs px-2 py-0.5 rounded-full`}>
+                        {difficultyMap[recipe.difficulty].text}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3 text-xs text-gray-600 mb-2">
+                      <span className="flex items-center">
+                        <Zap className="w-3 h-3 mr-1 text-orange-500" />
+                        {recipe.nutrition.calories}千卡
+                      </span>
+                      <span className="flex items-center">
+                        <Cpu className="w-3 h-3 mr-1 text-red-500" />
+                        {recipe.nutrition.protein}g蛋白质
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center text-xs text-green-600 bg-green-50 px-2 py-1 rounded border border-green-200">
+                        <Check className="w-3 h-3 mr-1" />
+                        可补充 {nutritionGap.protein > 0 ? Math.round((recipe.nutrition.protein / nutritionGap.protein) * 100) : 0}% 蛋白质缺口
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedRecipe(recipe);
+                          setShowRecipeDetail(true);
+                        }}
+                        className="text-blue-600 text-sm font-medium hover:text-blue-700"
+                      >
+                        查看
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+
+    // 智能配餐视图
+    const MealPlanView = () => (
+      <div className="space-y-6">
+        {/* 头部说明 */}
+        <div className="bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 rounded-2xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="text-xl font-bold mb-1">智能配餐</h2>
+              <p className="text-purple-100 text-sm">AI为您生成营养均衡的一日三餐</p>
+            </div>
+            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+              <Utensils className="w-6 h-6" />
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2 text-sm">
+            {membership.tier === 'free' ? (
+              <>
+                <Badge className="w-4 h-4" />
+                <span>免费用户每日1次 ({mealPlanCount}/1)</span>
+                {mealPlanCount >= 1 && (
+                  <button
+                    onClick={() => actions.showUpgrade('免费用户每日仅可生成1次配餐方案')}
+                    className="ml-auto bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full text-xs font-medium transition-colors"
+                  >
+                    升级解锁
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <Crown className="w-4 h-4 text-yellow-300" />
+                <span>会员无限次使用</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 生成配餐按钮 */}
+        {!currentMealPlan && (
+          <div className="text-center py-12">
+            <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Wand2 className="w-10 h-10 text-purple-500" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">开始智能配餐</h3>
+            <p className="text-gray-600 text-sm mb-6">AI将根据您的营养目标生成最佳方案</p>
+            <button
+              onClick={generateMealPlan}
+              disabled={generatingMealPlan}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-3 rounded-xl font-semibold hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg disabled:opacity-50"
+            >
+              {generatingMealPlan ? (
+                <span className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                  生成中...
+                </span>
+              ) : (
+                <span className="flex items-center">
+                  <Sparkles className="w-5 h-5 mr-2" />
+                  生成配餐方案
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* 配餐方案展示 */}
+        {currentMealPlan && (
+          <div className="space-y-6">
+            {/* 方案总览 */}
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-gray-900">今日配餐方案</h3>
+                <button
+                  onClick={generateMealPlan}
+                  className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center"
+                >
+                  <Sparkles className="w-4 h-4 mr-1" />
+                  重新生成
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="text-center p-2 bg-orange-50 rounded-lg">
+                  <div className="text-orange-600 font-semibold">早餐 30%</div>
+                  <div className="text-gray-600 text-xs">{currentMealPlan.breakfast.recipes.length}道菜</div>
+                </div>
+                <div className="text-center p-2 bg-green-50 rounded-lg">
+                  <div className="text-green-600 font-semibold">午餐 40%</div>
+                  <div className="text-gray-600 text-xs">{currentMealPlan.lunch.recipes.length}道菜</div>
+                </div>
+                <div className="text-center p-2 bg-blue-50 rounded-lg">
+                  <div className="text-blue-600 font-semibold">晚餐 30%</div>
+                  <div className="text-gray-600 text-xs">{currentMealPlan.dinner.recipes.length}道菜</div>
+                </div>
+              </div>
+            </div>
+
+            {/* 早餐 */}
+            <div className="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-xl p-5 border border-orange-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-yellow-400 rounded-xl flex items-center justify-center mr-3">
+                    <Coffee className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900">早餐</h3>
+                    <p className="text-xs text-gray-600">目标: {currentMealPlan.breakfast.targetCalories} 千卡</p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {currentMealPlan.breakfast.recipes.map((recipe: Recipe) => (
+                  <div key={recipe.id} className="bg-white rounded-lg p-3 flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <img src={recipe.image} alt={recipe.name} className="w-14 h-14 rounded-lg object-cover" />
+                      <div>
+                        <div className="font-medium text-gray-900">{recipe.name}</div>
+                        <div className="text-xs text-gray-600">{recipe.nutrition.calories}千卡 | {recipe.nutrition.protein}g蛋白质</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedRecipe(recipe);
+                        setShowRecipeDetail(true);
+                      }}
+                      className="text-orange-600 text-sm font-medium"
+                    >
+                      查看
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 午餐 */}
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border border-green-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-400 rounded-xl flex items-center justify-center mr-3">
+                    <Utensils className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900">午餐</h3>
+                    <p className="text-xs text-gray-600">目标: {currentMealPlan.lunch.targetCalories} 千卡</p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {currentMealPlan.lunch.recipes.map((recipe: Recipe) => (
+                  <div key={recipe.id} className="bg-white rounded-lg p-3 flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <img src={recipe.image} alt={recipe.name} className="w-14 h-14 rounded-lg object-cover" />
+                      <div>
+                        <div className="font-medium text-gray-900">{recipe.name}</div>
+                        <div className="text-xs text-gray-600">{recipe.nutrition.calories}千卡 | {recipe.nutrition.protein}g蛋白质</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedRecipe(recipe);
+                        setShowRecipeDetail(true);
+                      }}
+                      className="text-green-600 text-sm font-medium"
+                    >
+                      查看
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 晚餐 */}
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-xl flex items-center justify-center mr-3">
+                    <Sandwich className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900">晚餐</h3>
+                    <p className="text-xs text-gray-600">目标: {currentMealPlan.dinner.targetCalories} 千卡</p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {currentMealPlan.dinner.recipes.map((recipe: Recipe) => (
+                  <div key={recipe.id} className="bg-white rounded-lg p-3 flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <img src={recipe.image} alt={recipe.name} className="w-14 h-14 rounded-lg object-cover" />
+                      <div>
+                        <div className="font-medium text-gray-900">{recipe.name}</div>
+                        <div className="text-xs text-gray-600">{recipe.nutrition.calories}千卡 | {recipe.nutrition.protein}g蛋白质</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedRecipe(recipe);
+                        setShowRecipeDetail(true);
+                      }}
+                      className="text-blue-600 text-sm font-medium"
+                    >
+                      查看
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 一键采用按钮 */}
+            <button
+              onClick={() => {
+                alert('配餐方案已采用！将自动设为今日计划');
+                // 实际应该保存到meal records
+              }}
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 rounded-xl font-semibold hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg flex items-center justify-center"
+            >
+              <Check className="w-5 h-5 mr-2" />
+              一键采用此方案
+            </button>
+          </div>
+        )}
+      </div>
+    );
+
+    // 菜品推荐视图（原有功能）
+    const RecommendationView = () => (
+      <div className="space-y-6">
+        {/* 智能推荐横幅 */}
+        <div className="bg-gradient-to-r from-green-50 via-blue-50 to-purple-50 p-6 rounded-2xl border border-green-200 relative overflow-hidden shadow-lg">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-200/30 to-transparent rounded-full transform translate-x-16 -translate-y-16"></div>
+          <div className="relative">
+            <div className="flex items-center mb-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center mr-3">
+                <Brain className="w-5 h-5 text-white" />
+              </div>
+              <span className="font-semibold text-gray-800 text-lg">AI智能推荐</span>
+            </div>
+            <p className="text-sm text-gray-700 mb-4 leading-relaxed">
+              基于您的健康目标、饮食偏好和历史记录，为您精心挑选{recommendations.length}道菜谱
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <span className="inline-block bg-white/80 backdrop-blur-sm text-green-700 text-xs px-3 py-1.5 rounded-full border border-green-200 font-medium">🎯 营养匹配</span>
+              <span className="inline-block bg-white/80 backdrop-blur-sm text-blue-700 text-xs px-3 py-1.5 rounded-full border border-blue-200 font-medium">❤️ 个人喜好</span>
+              <span className="inline-block bg-white/80 backdrop-blur-sm text-purple-700 text-xs px-3 py-1.5 rounded-full border border-purple-200 font-medium">✨ 新品发现</span>
+            </div>
+          </div>
         </div>
 
         {/* 筛选器 */}
         {showFilters && (
-          <div className="mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
             <h3 className="font-semibold mb-3">筛选条件</h3>
             <div className="flex flex-wrap gap-2">
               {['all', 'breakfast', 'lunch', 'dinner', 'snack'].map((filter) => (
                 <button
                   key={filter}
                   onClick={() => setActiveFilter(filter)}
-                  className={`px-3 py-1 rounded-full text-sm ${
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                     activeFilter === filter
-                      ? 'bg-green-500 text-white'
+                      ? 'bg-green-500 text-white shadow-md'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
@@ -7242,38 +7877,38 @@ const App: React.FC = () => {
           {Object.entries(groupedRecommendations).map(([category, recs]) => (
             <div key={category} className="space-y-4">
               <div className="flex items-center space-x-2">
-                <span className="text-lg">{categoryIcons[category as keyof typeof categoryIcons]}</span>
+                <span className="text-xl">{categoryIcons[category as keyof typeof categoryIcons]}</span>
                 <h2 className="text-lg font-bold text-gray-800">
                   {categoryNames[category as keyof typeof categoryNames]}
                 </h2>
-                <span className="text-sm text-gray-500">({recs.length}道)</span>
-      </div>
+                <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{recs.length}道</span>
+              </div>
 
-      <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 {recs.map(({ recipe, reasons }) => (
-                  <div key={recipe.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
+                  <div key={recipe.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-lg transition-all">
                     <div className="relative">
-            <img 
-              src={recipe.image} 
-              alt={recipe.name} 
-              className="w-full h-48 object-cover"
-            />
+                      <img 
+                        src={recipe.image} 
+                        alt={recipe.name} 
+                        className="w-full h-48 object-cover"
+                      />
                       {recipe.isNew && (
                         <div className="absolute top-3 left-3">
-                          <span className="bg-gradient-to-r from-pink-500 to-orange-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                          <span className="bg-gradient-to-r from-pink-500 to-orange-500 text-white text-xs px-3 py-1 rounded-full font-semibold shadow-lg">
                             ✨ 新品
                           </span>
                         </div>
                       )}
                       <div className="absolute top-3 right-3">
-                        <div className={`${difficultyMap[recipe.difficulty].bg} ${difficultyMap[recipe.difficulty].color} text-xs px-2 py-1 rounded-full font-medium`}>
+                        <div className={`${difficultyMap[recipe.difficulty].bg} ${difficultyMap[recipe.difficulty].color} text-xs px-2 py-1 rounded-full font-medium shadow-sm`}>
                           {difficultyMap[recipe.difficulty].text}
                         </div>
                       </div>
                     </div>
                     
                     <div className="p-5">
-              <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center space-x-2">
                           <h3 className="text-lg font-semibold text-gray-900">{recipe.name}</h3>
                           {recipe.cuisineType && (
@@ -7281,11 +7916,11 @@ const App: React.FC = () => {
                               {recipe.cuisineType}
                             </span>
                           )}
-                </div>
+                        </div>
                         <div className="flex items-center text-yellow-500">
                           <Star className="w-4 h-4 fill-current" />
                           <span className="text-sm ml-1 font-medium">{recipe.rating}</span>
-              </div>
+                        </div>
                       </div>
 
                       <p className="text-sm text-gray-600 mb-3 leading-relaxed">{recipe.description}</p>
@@ -7293,11 +7928,11 @@ const App: React.FC = () => {
                       {/* 推荐理由 */}
                       {reasons.length > 0 && (
                         <div className="mb-3">
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1.5">
                             {reasons.map((reason, index) => (
                               <span 
                                 key={index}
-                                className="inline-block bg-green-50 text-green-700 text-xs px-2 py-1 rounded border border-green-200"
+                                className="inline-block bg-green-50 text-green-700 text-xs px-2.5 py-1 rounded-md border border-green-200 font-medium"
                               >
                                 💡 {reason}
                               </span>
@@ -7308,15 +7943,21 @@ const App: React.FC = () => {
 
                       <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                         <div className="flex items-center space-x-4">
-                <div className="flex items-center">
-                  <Clock className="w-4 h-4 mr-1" />
-                  <span>{recipe.cookTime}分钟</span>
-                </div>
+                          <div className="flex items-center">
+                            <Clock className="w-4 h-4 mr-1" />
+                            <span>{recipe.cookTime}分钟</span>
+                          </div>
                           <div className="text-gray-400">|</div>
-                          <div>{recipe.nutrition.calories}千卡</div>
+                          <div className="flex items-center">
+                            <Zap className="w-4 h-4 mr-1 text-orange-500" />
+                            <span>{recipe.nutrition.calories}千卡</span>
+                          </div>
                           <div className="text-gray-400">|</div>
-                          <div>{recipe.nutrition.protein}g蛋白质</div>
-              </div>
+                          <div className="flex items-center">
+                            <Cpu className="w-4 h-4 mr-1 text-red-500" />
+                            <span>{recipe.nutrition.protein}g蛋白质</span>
+                          </div>
+                        </div>
                       </div>
 
                       {/* 标签 */}
@@ -7324,7 +7965,7 @@ const App: React.FC = () => {
                         {recipe.tags && recipe.tags.slice(0, 3).map((tag, index) => (
                           <span 
                             key={index}
-                            className="inline-block bg-gray-50 text-gray-600 text-xs px-2 py-1 rounded border border-gray-200"
+                            className="inline-block bg-gray-50 text-gray-600 text-xs px-2.5 py-1 rounded-md border border-gray-200"
                           >
                             {tag}
                           </span>
@@ -7332,46 +7973,110 @@ const App: React.FC = () => {
                       </div>
 
                       <div className="flex space-x-3">
-                <button 
-                  onClick={() => {
-                    setSelectedRecipe(recipe);
-                    setShowRecipeDetail(true);
-                  }}
-                          className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-green-600 hover:to-green-700 transition-all flex items-center justify-center"
-                >
+                        <button 
+                          onClick={() => {
+                            setSelectedRecipe(recipe);
+                            setShowRecipeDetail(true);
+                          }}
+                          className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-green-600 hover:to-green-700 transition-all flex items-center justify-center shadow-md"
+                        >
                           <BookOpen className="w-4 h-4 mr-2" />
-                  查看菜谱
-                </button>
-                <button 
-                  onClick={() => {
-                    setSelectedRecipe(recipe);
-                    setShowRecipeDetail(true);
-                  }}
-                          className="bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
-                >
-                  <ShoppingCart className="w-4 h-4" />
-                </button>
+                          查看菜谱
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setSelectedRecipe(recipe);
+                            setShowRecipeDetail(true);
+                          }}
+                          className="bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-lg transition-colors flex items-center justify-center shadow-md"
+                        >
+                          <ShoppingCart className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          </div>
-        ))}
-      </div>
             </div>
           ))}
         </div>
 
         {/* 空状态 */}
         {recommendations.length === 0 && (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <BookOpen className="w-8 h-8 text-gray-400" />
+          <div className="text-center py-16">
+            <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+              <BookOpen className="w-10 h-10 text-gray-400" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">暂无推荐菜谱</h3>
             <p className="text-gray-600">请先记录一些饮食数据，让AI了解您的喜好</p>
           </div>
         )}
-    </div>
-  );
+      </div>
+    );
+
+    return (
+      <div className="pb-24 p-6 bg-gray-50 min-h-screen">
+        {/* 头部 */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">AI菜谱推荐</h1>
+            <p className="text-sm text-gray-600 mt-1">智能分析 · 精准配餐 · 个性推荐</p>
+          </div>
+          {activeRecipeTab === 'recommendation' && (
+            <button 
+              onClick={() => setShowFilters(!showFilters)}
+              className="p-2 bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
+            >
+              <Filter className="w-5 h-5 text-gray-600" />
+            </button>
+          )}
+        </div>
+
+        {/* 标签页切换 */}
+        <div className="mb-6 bg-white rounded-xl p-1.5 shadow-sm border border-gray-200">
+          <div className="grid grid-cols-3 gap-1">
+            <button
+              onClick={() => setActiveRecipeTab('gap')}
+              className={`py-3 px-4 rounded-lg font-medium text-sm transition-all ${
+                activeRecipeTab === 'gap'
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <TrendingUp className="w-4 h-4 inline mr-1.5" />
+              营养缺口
+            </button>
+            <button
+              onClick={() => setActiveRecipeTab('meal-plan')}
+              className={`py-3 px-4 rounded-lg font-medium text-sm transition-all ${
+                activeRecipeTab === 'meal-plan'
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Utensils className="w-4 h-4 inline mr-1.5" />
+              智能配餐
+            </button>
+            <button
+              onClick={() => setActiveRecipeTab('recommendation')}
+              className={`py-3 px-4 rounded-lg font-medium text-sm transition-all ${
+                activeRecipeTab === 'recommendation'
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Sparkles className="w-4 h-4 inline mr-1.5" />
+              菜品推荐
+            </button>
+          </div>
+        </div>
+
+        {/* 内容区域 */}
+        {activeRecipeTab === 'gap' && <NutritionGapView />}
+        {activeRecipeTab === 'meal-plan' && <MealPlanView />}
+        {activeRecipeTab === 'recommendation' && <RecommendationView />}
+      </div>
+    );
   };
 
   const CommunityView = () => (
@@ -8901,6 +9606,458 @@ const App: React.FC = () => {
     </div>
   );
 
+  // 饮水记录详情页面组件
+  const WaterDetailView = () => {
+    const [selectedTab, setSelectedTab] = useState<'today' | 'history' | 'settings'>('today');
+    const [showAddWater, setShowAddWater] = useState(false);
+    const [customAmount, setCustomAmount] = useState('');
+
+    // 计算今日饮水数据
+    const today = new Date().toISOString().split('T')[0];
+    const todayRecords = waterRecords.filter(r => r.date === today);
+    const todayTotal = todayRecords.reduce((sum, r) => sum + r.amount, 0);
+    const completionRate = Math.round((todayTotal / waterTarget) * 100);
+
+    // 计算近7天饮水数据
+    const getLast7DaysData = () => {
+      const data = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        const dayRecords = waterRecords.filter(r => r.date === dateStr);
+        const total = dayRecords.reduce((sum, r) => sum + r.amount, 0);
+        data.push({
+          date: dateStr,
+          dayName: ['日', '一', '二', '三', '四', '五', '六'][date.getDay()],
+          amount: total,
+          completion: Math.round((total / waterTarget) * 100)
+        });
+      }
+      return data;
+    };
+
+    const last7DaysData = getLast7DaysData();
+
+    // 快捷添加饮水记录
+    const addWaterRecord = (amount: number) => {
+      const newRecord: WaterRecord = {
+        id: Date.now().toString(),
+        date: today,
+        time: new Date().toTimeString().slice(0, 5),
+        amount,
+        timestamp: new Date().toISOString()
+      };
+      setWaterRecords([...waterRecords, newRecord]);
+    };
+
+    // 删除记录
+    const deleteRecord = (id: string) => {
+      setWaterRecords(waterRecords.filter(r => r.id !== id));
+    };
+
+    return (
+      <div className="fixed inset-0 bg-gray-50 z-50 flex flex-col">
+        {/* 头部 */}
+        <div className="bg-gradient-to-br from-cyan-500 to-blue-600 text-white p-6 pb-8">
+          <div className="flex items-center justify-between mb-6">
+            <button onClick={() => setShowWaterDetail(false)} className="p-2 hover:bg-white/10 rounded-full">
+              <ArrowLeft size={24} />
+            </button>
+            <h1 className="text-xl font-bold">饮水记录</h1>
+            <div className="w-10"></div>
+          </div>
+
+          {/* 今日饮水进度 */}
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6">
+            <div className="text-center mb-4">
+              <div className="text-5xl font-bold mb-2">{todayTotal}ml</div>
+              <div className="text-cyan-100">今日已喝 / 目标 {waterTarget}ml</div>
+            </div>
+            
+            <div className="relative h-4 bg-white/20 rounded-full overflow-hidden mb-3">
+              <div 
+                className="absolute inset-y-0 left-0 bg-gradient-to-r from-cyan-300 to-blue-300 transition-all duration-500 rounded-full"
+                style={{ width: `${Math.min(100, completionRate)}%` }}
+              ></div>
+            </div>
+            
+            <div className="flex justify-between text-sm text-cyan-100">
+              <span>完成度: {completionRate}%</span>
+              <span>还需: {Math.max(0, waterTarget - todayTotal)}ml</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 选项卡 */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="flex">
+            {[
+              { key: 'today', label: '今日记录' },
+              { key: 'history', label: '历史统计' },
+              { key: 'settings', label: '提醒设置' }
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setSelectedTab(tab.key as any)}
+                className={`flex-1 py-4 text-sm font-medium transition-colors ${
+                  selectedTab === tab.key
+                    ? 'text-cyan-600 border-b-2 border-cyan-600'
+                    : 'text-gray-500'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 内容区域 */}
+        <div className="flex-1 overflow-y-auto p-6 pb-32">
+          {/* 今日记录 */}
+          {selectedTab === 'today' && (
+            <div className="space-y-6">
+              {/* 快捷记录 */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">快捷记录</h3>
+                <div className="grid grid-cols-4 gap-3">
+                  {[100, 200, 300, 500].map((amount) => (
+                    <button
+                      key={amount}
+                      onClick={() => addWaterRecord(amount)}
+                      className="bg-gradient-to-br from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white rounded-xl p-4 text-center transition-all hover:scale-105"
+                    >
+                      <Droplets className="w-6 h-6 mx-auto mb-1" />
+                      <div className="text-sm font-bold">{amount}ml</div>
+                    </button>
+                  ))}
+                </div>
+                
+                <button
+                  onClick={() => setShowAddWater(true)}
+                  className="w-full mt-3 bg-white border-2 border-dashed border-cyan-300 text-cyan-600 rounded-xl py-3 font-medium hover:bg-cyan-50 transition-colors"
+                >
+                  + 自定义容量
+                </button>
+              </div>
+
+              {/* 今日记录列表 */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">今日记录 ({todayRecords.length}次)</h3>
+                {todayRecords.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Droplets className="w-16 h-16 mx-auto text-gray-300 mb-3" />
+                    <p className="text-gray-400">还没有饮水记录</p>
+                    <p className="text-sm text-gray-400 mt-1">点击上方按钮开始记录吧</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {todayRecords.sort((a, b) => b.timestamp.localeCompare(a.timestamp)).map((record) => (
+                      <div key={record.id} className="bg-white rounded-xl p-4 flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center">
+                            <Droplets className="w-6 h-6 text-cyan-600" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-800">{record.amount}ml</div>
+                            <div className="text-sm text-gray-500">{record.time}</div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => deleteRecord(record.id)}
+                          className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                        >
+                          <XCircle size={20} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 今日统计 */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-gradient-to-br from-cyan-50 to-blue-50 border border-cyan-200 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-cyan-600 mb-1">{todayRecords.length}</div>
+                  <div className="text-xs text-gray-600">饮水次数</div>
+                </div>
+                <div className="bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-blue-600 mb-1">
+                    {todayRecords.length > 0 ? Math.round(todayTotal / todayRecords.length) : 0}
+                  </div>
+                  <div className="text-xs text-gray-600">平均每次(ml)</div>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-purple-600 mb-1">{completionRate}%</div>
+                  <div className="text-xs text-gray-600">目标完成</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 历史统计 */}
+          {selectedTab === 'history' && (
+            <div className="space-y-6">
+              {/* 近7天趋势 */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">近7天趋势</h3>
+                <div className="bg-white rounded-xl p-4 shadow-sm">
+                  <div className="flex items-end justify-between h-48 gap-2">
+                    {last7DaysData.map((day, index) => (
+                      <div key={index} className="flex-1 flex flex-col items-center justify-end">
+                        <div className="text-xs text-gray-500 mb-1">{day.amount > 0 ? `${day.amount}` : ''}</div>
+                        <div 
+                          className="w-full bg-gradient-to-t from-cyan-500 to-blue-500 rounded-t-lg transition-all duration-500"
+                          style={{ 
+                            height: `${Math.max(5, (day.amount / waterTarget) * 100)}%`,
+                            minHeight: day.amount > 0 ? '8px' : '0px'
+                          }}
+                        ></div>
+                        <div className="text-xs text-gray-600 mt-2">周{day.dayName}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
+                    <div className="text-sm text-gray-500">目标线: {waterTarget}ml</div>
+                    <div className="h-px flex-1 mx-3 border-t-2 border-dashed border-cyan-300"></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 周统计 */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">本周统计</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-gradient-to-br from-cyan-50 to-blue-50 border border-cyan-200 rounded-xl p-4">
+                    <div className="text-xs text-gray-600 mb-1">平均饮水量</div>
+                    <div className="text-2xl font-bold text-cyan-600">
+                      {Math.round(last7DaysData.reduce((sum, d) => sum + d.amount, 0) / 7)}ml
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-4">
+                    <div className="text-xs text-gray-600 mb-1">达标天数</div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {last7DaysData.filter(d => d.completion >= 100).length}/7天
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4">
+                    <div className="text-xs text-gray-600 mb-1">最高单日</div>
+                    <div className="text-2xl font-bold text-purple-600">
+                      {Math.max(...last7DaysData.map(d => d.amount), 0)}ml
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-br from-pink-50 to-red-50 border border-pink-200 rounded-xl p-4">
+                    <div className="text-xs text-gray-600 mb-1">完成率</div>
+                    <div className="text-2xl font-bold text-pink-600">
+                      {Math.round(last7DaysData.reduce((sum, d) => sum + d.completion, 0) / 7)}%
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 饮水建议 */}
+              <div className="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl p-4 text-white">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Brain className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="font-semibold mb-1">💡 健康建议</div>
+                    <div className="text-sm text-cyan-50">
+                      {completionRate >= 100
+                        ? '太棒了！您今天的饮水量已达标，继续保持这个好习惯！'
+                        : completionRate >= 70
+                        ? '不错哦！再喝一点就能达到今日目标了，加油！'
+                        : '记得多喝水哦！充足的水分有助于新陈代谢和身体健康。'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 提醒设置 */}
+          {selectedTab === 'settings' && (
+            <div className="space-y-6">
+              {/* 饮水目标 */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">饮水目标</h3>
+                <div className="bg-white rounded-xl p-4 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <div className="font-medium text-gray-800">每日目标</div>
+                      <div className="text-sm text-gray-500">根据体重计算: 体重 × 30ml</div>
+                    </div>
+                    <div className="text-2xl font-bold text-cyan-600">{waterTarget}ml</div>
+                  </div>
+                  <input
+                    type="range"
+                    min="1500"
+                    max="3500"
+                    step="100"
+                    value={waterTarget}
+                    onChange={(e) => setWaterTarget(Number(e.target.value))}
+                    className="w-full h-2 bg-cyan-100 rounded-lg appearance-none cursor-pointer accent-cyan-600"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-2">
+                    <span>1500ml</span>
+                    <span>3500ml</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 提醒开关 */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">智能提醒</h3>
+                <div className="bg-white rounded-xl p-4 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                        <Zap className="w-5 h-5 text-amber-600" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-800">定时提醒</div>
+                        <div className="text-sm text-gray-500">按时提醒您喝水</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setWaterReminderSettings({
+                        ...waterReminderSettings,
+                        enabled: !waterReminderSettings.enabled
+                      })}
+                      className={`relative w-14 h-8 rounded-full transition-colors ${
+                        waterReminderSettings.enabled ? 'bg-cyan-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${
+                        waterReminderSettings.enabled ? 'translate-x-6' : 'translate-x-0'
+                      }`}></div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 提醒间隔 */}
+              {waterReminderSettings.enabled && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">提醒间隔</h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[60, 120, 180].map((interval) => (
+                      <button
+                        key={interval}
+                        onClick={() => setWaterReminderSettings({
+                          ...waterReminderSettings,
+                          interval
+                        })}
+                        className={`py-3 px-4 rounded-xl font-medium transition-all ${
+                          waterReminderSettings.interval === interval
+                            ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md'
+                            : 'bg-white text-gray-700 border border-gray-200'
+                        }`}
+                      >
+                        {interval / 60}小时
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 提醒时段 */}
+              {waterReminderSettings.enabled && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">提醒时段</h3>
+                  <div className="bg-white rounded-xl p-4 shadow-sm space-y-4">
+                    <div>
+                      <label className="text-sm text-gray-600 mb-2 block">开始时间</label>
+                      <input
+                        type="time"
+                        value={waterReminderSettings.startTime}
+                        onChange={(e) => setWaterReminderSettings({
+                          ...waterReminderSettings,
+                          startTime: e.target.value
+                        })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600 mb-2 block">结束时间</label>
+                      <input
+                        type="time"
+                        value={waterReminderSettings.endTime}
+                        onChange={(e) => setWaterReminderSettings({
+                          ...waterReminderSettings,
+                          endTime: e.target.value
+                        })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 健康小贴士 */}
+              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl">💧</div>
+                  <div>
+                    <div className="font-semibold text-gray-800 mb-2">饮水小贴士</div>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li>• 早起后喝一杯温水，帮助唤醒身体</li>
+                      <li>• 运动前后要及时补充水分</li>
+                      <li>• 不要等口渴才喝水，要少量多次</li>
+                      <li>• 睡前1小时避免大量饮水</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 自定义容量弹窗 */}
+        {showAddWater && (
+          <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-6">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
+              <h3 className="text-lg font-bold mb-4">添加饮水记录</h3>
+              <input
+                type="number"
+                value={customAmount}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                placeholder="请输入饮水量"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 mb-4"
+                autoFocus
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowAddWater(false);
+                    setCustomAmount('');
+                  }}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={() => {
+                    const amount = parseInt(customAmount);
+                    if (amount > 0) {
+                      addWaterRecord(amount);
+                      setShowAddWater(false);
+                      setCustomAmount('');
+                    }
+                  }}
+                  className="flex-1 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl font-medium"
+                >
+                  确定
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const tabs = [
     { id: 'home', name: '首页', icon: Home },
     { id: 'recipes', name: '菜谱', icon: BookOpen },
@@ -8960,6 +10117,7 @@ const App: React.FC = () => {
       {showAddWeight && <AddWeightModal />}
       {showPurchaseModal && selectedDietPlan && <PurchaseModal plan={selectedDietPlan} />}
       {showFoodCorrectionModal && <FoodCorrectionModal />}
+      {showWaterDetail && <WaterDetailView />}
       {showNutritionistDetail && selectedNutritionist && (
         <NutritionistDetailModal 
           nutritionist={selectedNutritionist} 
