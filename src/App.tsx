@@ -11,6 +11,11 @@ import { UpgradeModal } from './components/membership/UpgradeModal';
 import { MembershipCenter } from './components/membership/MembershipCenter';
 import { MembershipTier } from './types/membership';
 
+// 认证系统导入
+import { useAuthStore } from './stores/authStore';
+import { LoginPage } from './components/auth/LoginPage';
+import { RegisterPage } from './components/auth/RegisterPage';
+
 interface NutritionData {
   calories: number;
   protein: number;
@@ -263,6 +268,10 @@ interface PremiumMealPlan {
 }
 
 const App: React.FC = () => {
+  // 认证状态
+  const { isAuthenticated, user } = useAuthStore();
+  const [authView, setAuthView] = useState<'login' | 'register'>('login');
+  
   const [activeTab, setActiveTab] = useState('home');
   const [showCamera, setShowCamera] = useState(false);
   const [showNutritionReport, setShowNutritionReport] = useState(false);
@@ -283,13 +292,6 @@ const App: React.FC = () => {
   const [selectedDietPlan, setSelectedDietPlan] = useState<DietPlan | null>(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [selectedKOLPost, setSelectedKOLPost] = useState<KOLPost | null>(null);
-  
-  // 游戏化系统
-  const { addExp, logMeal, level, exp, streak, totalMeals, achievements } = useUltraSimpleGamificationStore();
-  
-  // 会员系统
-  const { membership, permissions, actions, ui } = useMembership();
-  const { executeWithPermission } = useMembershipGuard();
   
   // 新增状态：拍照后的餐次选择
   const [showMealSelection, setShowMealSelection] = useState(false);
@@ -517,6 +519,44 @@ const App: React.FC = () => {
     nutritionScore: number;
     recommendations: string[];
   } | null>(null);
+  
+  // 游戏化系统
+  const { addExp, logMeal, level, exp, streak, totalMeals, achievements } = useUltraSimpleGamificationStore();
+  
+  // 会员系统
+  const { membership, permissions, actions, ui } = useMembership();
+  const { executeWithPermission } = useMembershipGuard();
+
+  // 处理登录成功
+  const handleLoginSuccess = () => {
+    // 登录成功后可以进行一些初始化操作
+    console.log('用户登录成功:', user);
+  };
+  
+  // 处理注册成功
+  const handleRegisterSuccess = () => {
+    // 注册成功后可以进行一些初始化操作
+    console.log('用户注册成功:', user);
+  };
+  
+  // 如果未登录，显示登录/注册页面
+  if (!isAuthenticated) {
+    if (authView === 'login') {
+      return (
+        <LoginPage
+          onSwitchToRegister={() => setAuthView('register')}
+          onLoginSuccess={handleLoginSuccess}
+        />
+      );
+    } else {
+      return (
+        <RegisterPage
+          onSwitchToLogin={() => setAuthView('login')}
+          onRegisterSuccess={handleRegisterSuccess}
+        />
+      );
+    }
+  }
 
   // 在组件加载时从localStorage读取健康档案
   React.useEffect(() => {
@@ -6540,7 +6580,7 @@ const App: React.FC = () => {
             <span className="text-gray-400">→</span>
           </button>
 
-          <button className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+          <button className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100">
             <div className="flex items-center">
               <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex items-center justify-center mr-3">
                 <ShoppingCart className="w-5 h-5 text-white" />
@@ -6552,8 +6592,41 @@ const App: React.FC = () => {
             </div>
             <span className="text-gray-400">→</span>
           </button>
+
+          <button 
+            onClick={() => {
+              if (confirm('确定要退出登录吗？')) {
+                useAuthStore.getState().logout();
+              }
+            }}
+            className="w-full p-4 flex items-center justify-between hover:bg-red-50 transition-colors"
+          >
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-gray-400 to-gray-500 rounded-lg flex items-center justify-center mr-3">
+                <ArrowLeft className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="font-semibold text-gray-800">退出登录</div>
+                <div className="text-xs text-gray-500">退出当前账号</div>
+              </div>
+            </div>
+            <span className="text-gray-400">→</span>
+          </button>
         </div>
       </div>
+
+      {/* 用户信息显示 */}
+      {user && (
+        <div className="bg-white rounded-xl p-4 mb-6 shadow-sm">
+          <div className="text-center">
+            <div className="text-sm text-gray-600 mb-1">当前登录账号</div>
+            <div className="font-semibold text-gray-800">{user.email}</div>
+            {user.phone && (
+              <div className="text-sm text-gray-600 mt-1">{user.phone}</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 升级提示卡片 */}
       {!healthProfile && (
