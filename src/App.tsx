@@ -120,6 +120,16 @@ interface HealthProfile {
   chronicDiseases?: string[]; // 慢性病列表
   createdAt: string;
   updatedAt: string;
+  targetWeight?: number; // 目标体重
+}
+
+// 体重记录接口
+interface WeightRecord {
+  id: string;
+  date: string; // YYYY-MM-DD
+  weight: number; // kg
+  bmi: number;
+  note?: string; // 备注
 }
 
 interface DailyNutritionTargets {
@@ -347,6 +357,11 @@ const App: React.FC = () => {
   const [correctionFoodIndex, setCorrectionFoodIndex] = useState<number>(-1);
   const [correctionType, setCorrectionType] = useState<'weight' | 'food'>('weight');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // 体重管理相关状态
+  const [showWeightManagement, setShowWeightManagement] = useState(false);
+  const [weightRecords, setWeightRecords] = useState<WeightRecord[]>([]);
+  const [showAddWeight, setShowAddWeight] = useState(false);
   
   // 菜品数据库
   const foodDatabase = [
@@ -2431,6 +2446,397 @@ const App: React.FC = () => {
               className="py-3 px-4 bg-green-500 text-white rounded-lg font-semibold"
             >
               确认
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // BMI计算函数（提取到外部以便复用）
+  const calculateBMI = (weight: number, height: number): number => {
+    return weight / Math.pow(height / 100, 2);
+  };
+
+  // 获取BMI健康状态
+  const getBMIStatus = (bmi: number): { label: string; color: string; range: string } => {
+    if (bmi < 18.5) return { label: '偏瘦', color: 'text-blue-600', range: '< 18.5' };
+    if (bmi < 24) return { label: '正常', color: 'text-green-600', range: '18.5 - 23.9' };
+    if (bmi < 28) return { label: '超重', color: 'text-orange-600', range: '24.0 - 27.9' };
+    return { label: '肥胖', color: 'text-red-600', range: '≥ 28.0' };
+  };
+
+  // 添加体重记录（提取到外部以便AddWeightModal使用）
+  const handleAddWeight = (weight: number, note: string = '') => {
+    if (!healthProfile) {
+      alert('请先创建健康档案');
+      return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const bmi = calculateBMI(weight, healthProfile.height);
+
+    const newRecord: WeightRecord = {
+      id: `weight-${Date.now()}`,
+      date: today,
+      weight,
+      bmi,
+      note
+    };
+
+    // 检查今天是否已有记录
+    const existingIndex = weightRecords.findIndex(r => r.date === today);
+    if (existingIndex >= 0) {
+      const updated = [...weightRecords];
+      updated[existingIndex] = newRecord;
+      setWeightRecords(updated);
+    } else {
+      setWeightRecords([...weightRecords, newRecord].sort((a, b) => a.date.localeCompare(b.date)));
+    }
+
+    setShowAddWeight(false);
+  };
+
+  // 体重管理视图组件
+  const WeightManagementView = () => {
+
+    // 线性回归预测
+    const predictWeightGoal = (records: WeightRecord[], targetWeight: number): { days: number; predictedDate: string } | null => {
+      if (records.length < 2 || !targetWeight) return null;
+
+      // 准备数据点（最近30天）
+      const recentRecords = records.slice(-30);
+      const n = recentRecords.length;
+      
+      // 计算日期差（以第一条记录为基准）
+      const baseDate = new Date(recentRecords[0].date).getTime();
+      const x = recentRecords.map(r => (new Date(r.date).getTime() - baseDate) / (1000 * 60 * 60 * 24));
+      const y = recentRecords.map(r => r.weight);
+
+      // 计算线性回归
+      const sumX = x.reduce((a, b) => a + b, 0);
+      const sumY = y.reduce((a, b) => a + b, 0);
+      const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
+      const sumX2 = x.reduce((sum, xi) => sum + xi * xi, 0);
+
+      const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+      const intercept = (sumY - slope * sumX) / n;
+
+      // 如果趋势与目标不符，返回null
+      const currentWeight = records[records.length - 1].weight;
+      const weightDiff = targetWeight - currentWeight;
+      
+      if ((weightDiff > 0 && slope <= 0) || (weightDiff < 0 && slope >= 0)) {
+        return null; // 趋势不符合目标
+      }
+
+      // 计算达到目标需要的天数
+      const lastDay = x[x.length - 1];
+      const daysNeeded = (targetWeight - (slope * lastDay + intercept)) / slope;
+      
+      if (daysNeeded < 0) return null;
+
+      const predictedDate = new Date(new Date(recentRecords[recentRecords.length - 1].date).getTime() + daysNeeded * 24 * 60 * 60 * 1000);
+      
+      return {
+        days: Math.ceil(daysNeeded),
+        predictedDate: predictedDate.toLocaleDateString('zh-CN')
+      };
+    };
+
+    // 计算周/月变化
+    const getWeightChange = (days: number): { change: number; percentage: number } | null => {
+      if (weightRecords.length === 0) return null;
+
+      const now = new Date();
+      const targetDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+      
+      const oldRecord = weightRecords.find(r => new Date(r.date) <= targetDate);
+      const latestRecord = weightRecords[weightRecords.length - 1];
+
+      if (!oldRecord) return null;
+
+      const change = latestRecord.weight - oldRecord.weight;
+      const percentage = (change / oldRecord.weight) * 100;
+
+      return { change, percentage };
+    };
+
+    const latestRecord = weightRecords.length > 0 ? weightRecords[weightRecords.length - 1] : null;
+    const bmiStatus = latestRecord ? getBMIStatus(latestRecord.bmi) : null;
+    const weekChange = getWeightChange(7);
+    const monthChange = getWeightChange(30);
+    const prediction = healthProfile?.targetWeight ? predictWeightGoal(weightRecords, healthProfile.targetWeight) : null;
+
+    // 准备图表数据
+    const chartData = weightRecords.slice(-30).map(r => ({
+      date: new Date(r.date).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }),
+      weight: r.weight,
+      bmi: r.bmi
+    }));
+
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
+        <div className="bg-white w-full rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto">
+          {/* 标题栏 */}
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold flex items-center">
+              <TrendingUp className="w-6 h-6 mr-2 text-teal-600" />
+              体重管理
+            </h2>
+            <button 
+              onClick={() => setShowWeightManagement(false)}
+              className="text-gray-500 p-2 hover:bg-gray-100 rounded-lg"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* 当前状态卡片 */}
+          {latestRecord && healthProfile && (
+            <div className="bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl p-6 text-white mb-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <div className="text-white/80 text-sm mb-1">当前体重</div>
+                  <div className="text-4xl font-bold">{latestRecord.weight} <span className="text-2xl">kg</span></div>
+                  <div className="text-white/80 text-sm mt-1">{new Date(latestRecord.date).toLocaleDateString('zh-CN')}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-white/80 text-sm mb-1">BMI指数</div>
+                  <div className="text-3xl font-bold">{latestRecord.bmi.toFixed(1)}</div>
+                  <div className={`text-sm mt-1 px-2 py-1 rounded-lg bg-white/20`}>
+                    {bmiStatus?.label}
+                  </div>
+                </div>
+              </div>
+
+              {healthProfile.targetWeight && (
+                <div className="border-t border-white/20 pt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-white/80 text-sm">目标体重</span>
+                    <span className="font-semibold">{healthProfile.targetWeight} kg</span>
+                  </div>
+                  <div className="flex justify-between items-center mt-1">
+                    <span className="text-white/80 text-sm">距离目标</span>
+                    <span className="font-semibold">
+                      {Math.abs(latestRecord.weight - healthProfile.targetWeight).toFixed(1)} kg
+                      {latestRecord.weight > healthProfile.targetWeight ? ' ↓' : ' ↑'}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* BMI健康范围说明 */}
+          <div className="bg-gray-50 rounded-xl p-4 mb-6">
+            <h3 className="font-semibold mb-3 text-sm text-gray-700">BMI健康范围</h3>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
+                <span>偏瘦: &lt; 18.5</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+                <span>正常: 18.5-23.9</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full bg-orange-500 mr-2"></div>
+                <span>超重: 24.0-27.9</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
+                <span>肥胖: ≥ 28.0</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 变化趋势 */}
+          {(weekChange || monthChange) && (
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {weekChange && (
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <div className="text-gray-600 text-sm mb-1">本周变化</div>
+                  <div className={`text-2xl font-bold ${weekChange.change > 0 ? 'text-red-600' : weekChange.change < 0 ? 'text-green-600' : 'text-gray-600'}`}>
+                    {weekChange.change > 0 ? '+' : ''}{weekChange.change.toFixed(1)} kg
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {weekChange.change > 0 ? '↑' : '↓'} {Math.abs(weekChange.percentage).toFixed(1)}%
+                  </div>
+                </div>
+              )}
+              {monthChange && (
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <div className="text-gray-600 text-sm mb-1">本月变化</div>
+                  <div className={`text-2xl font-bold ${monthChange.change > 0 ? 'text-red-600' : monthChange.change < 0 ? 'text-green-600' : 'text-gray-600'}`}>
+                    {monthChange.change > 0 ? '+' : ''}{monthChange.change.toFixed(1)} kg
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {monthChange.change > 0 ? '↑' : '↓'} {Math.abs(monthChange.percentage).toFixed(1)}%
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 目标预测 */}
+          {prediction && (
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4 mb-6">
+              <div className="flex items-start">
+                <Sparkles className="w-5 h-5 text-purple-600 mr-2 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-purple-900 mb-2">目标预测</h3>
+                  <p className="text-sm text-purple-800">
+                    根据当前趋势，预计 <span className="font-bold">{prediction.days}</span> 天后
+                    （{prediction.predictedDate}）可达到目标体重
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 体重曲线图 */}
+          {chartData.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
+              <h3 className="font-semibold mb-4 flex items-center">
+                <BarChart3 className="w-4 h-4 mr-2 text-teal-600" />
+                体重趋势
+              </h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 12 }}
+                    stroke="#9ca3af"
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12 }}
+                    stroke="#9ca3af"
+                    domain={['dataMin - 2', 'dataMax + 2']}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="weight" 
+                    stroke="#14b8a6" 
+                    strokeWidth={2}
+                    dot={{ fill: '#14b8a6', r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* 历史记录列表 */}
+          {weightRecords.length > 0 && (
+            <div className="mb-6">
+              <h3 className="font-semibold mb-3 flex items-center">
+                <Clock className="w-4 h-4 mr-2 text-teal-600" />
+                历史记录
+              </h3>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {weightRecords.slice().reverse().map((record) => {
+                  const status = getBMIStatus(record.bmi);
+                  return (
+                    <div key={record.id} className="bg-gray-50 rounded-lg p-3 flex justify-between items-center">
+                      <div>
+                        <div className="font-semibold">{record.weight} kg</div>
+                        <div className="text-xs text-gray-500">{new Date(record.date).toLocaleDateString('zh-CN')}</div>
+                        {record.note && <div className="text-xs text-gray-600 mt-1">{record.note}</div>}
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-gray-600">BMI: {record.bmi.toFixed(1)}</div>
+                        <div className={`text-xs ${status.color}`}>{status.label}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 空状态 */}
+          {weightRecords.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">⚖️</div>
+              <h3 className="font-semibold text-gray-800 mb-2">还没有体重记录</h3>
+              <p className="text-gray-600 text-sm mb-6">开始记录体重，追踪健康变化</p>
+            </div>
+          )}
+
+          {/* 添加记录按钮 */}
+          <button
+            onClick={() => setShowAddWeight(true)}
+            className="w-full bg-teal-500 text-white py-4 rounded-xl font-semibold hover:bg-teal-600 transition-colors flex items-center justify-center"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            添加体重记录
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // 添加体重记录对话框
+  const AddWeightModal = () => {
+    const [weight, setWeight] = useState(healthProfile?.weight.toString() || '');
+    const [note, setNote] = useState('');
+
+    const handleSubmit = () => {
+      const weightNum = parseFloat(weight);
+      if (isNaN(weightNum) || weightNum <= 0 || weightNum > 300) {
+        alert('请输入有效的体重（0-300kg）');
+        return;
+      }
+      handleAddWeight(weightNum, note);
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+          <h3 className="text-xl font-bold mb-4">添加体重记录</h3>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              体重 (kg) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+              placeholder="请输入体重"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              step="0.1"
+              min="0"
+              max="300"
+            />
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              备注（可选）
+            </label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="记录今天的感受或变化..."
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
+              rows={3}
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowAddWeight(false)}
+              className="flex-1 py-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              取消
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="flex-1 py-3 bg-teal-500 text-white rounded-lg font-semibold hover:bg-teal-600"
+            >
+              保存
             </button>
           </div>
         </div>
@@ -7696,6 +8102,29 @@ const App: React.FC = () => {
             <span className="text-gray-400">→</span>
           </button>
 
+          <button 
+            onClick={() => setShowWeightManagement(true)}
+            className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100"
+          >
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-lg flex items-center justify-center mr-3">
+                <TrendingUp className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="font-semibold text-gray-800">体重管理</div>
+                <div className="text-xs text-gray-500">记录体重变化，分析健康趋势</div>
+              </div>
+            </div>
+            <div className="flex items-center">
+              {weightRecords.length > 0 && (
+                <div className="bg-teal-100 text-teal-700 text-xs px-2 py-1 rounded-full mr-2">
+                  {weightRecords.length} 条记录
+                </div>
+              )}
+              <span className="text-gray-400">→</span>
+            </div>
+          </button>
+
           <button className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100">
             <div className="flex items-center">
               <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-violet-500 rounded-lg flex items-center justify-center mr-3">
@@ -8527,6 +8956,8 @@ const App: React.FC = () => {
       {selectedRecipe && showRecipeDetail && <RecipeDetailModal recipe={selectedRecipe} />}
       {showProfileSetup && <HealthProfileSetup />}
       {showHealthProfile && <HealthProfileView />}
+      {showWeightManagement && <WeightManagementView />}
+      {showAddWeight && <AddWeightModal />}
       {showPurchaseModal && selectedDietPlan && <PurchaseModal plan={selectedDietPlan} />}
       {showFoodCorrectionModal && <FoodCorrectionModal />}
       {showNutritionistDetail && selectedNutritionist && (
