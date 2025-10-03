@@ -232,12 +232,15 @@ export const useMembershipStore = create<MembershipStore>()(
       // 初始化会员信息
       initializeMembership: (userId: string) => {
         const state = get();
+        console.log('初始化会员信息 - 用户ID:', userId, '当前会员信息:', state.userMembership);
         if (!state.userMembership) {
           const defaultMembership = createDefaultMembership(userId);
+          console.log('创建默认会员信息:', defaultMembership);
           set({ userMembership: defaultMembership });
         } else {
           // 检查是否需要重置月度使用量
           if (shouldResetMonthlyUsage(state.userMembership.usage.lastResetDate)) {
+            console.log('重置月度使用量');
             get().resetMonthlyUsage();
           }
         }
@@ -248,12 +251,16 @@ export const useMembershipStore = create<MembershipStore>()(
         const state = get();
         const membership = state.userMembership;
         
+        console.log('检查AI识别权限 - 会员信息:', membership);
+        
         if (!membership) {
+          console.log('权限检查失败: 未找到会员信息');
           return { allowed: false, reason: '未找到会员信息' };
         }
 
         // 检查会员状态
         if (membership.status !== MembershipStatus.ACTIVE) {
+          console.log('权限检查失败: 会员状态不活跃', membership.status);
           return { 
             allowed: false, 
             reason: '会员已过期',
@@ -263,18 +270,22 @@ export const useMembershipStore = create<MembershipStore>()(
 
         // 检查是否需要重置月度使用量
         if (shouldResetMonthlyUsage(membership.usage.lastResetDate)) {
+          console.log('重置月度使用量');
           get().resetMonthlyUsage();
         }
 
         const limit = AI_RECOGNITION_LIMITS[membership.tier];
+        console.log('AI识别限制:', { tier: membership.tier, limit, currentUsage: membership.usage.aiRecognitionCount });
         
         // 无限制
         if (limit === -1) {
+          console.log('AI识别权限通过: 无限制');
           return { allowed: true };
         }
 
         // 检查使用次数
         if (membership.usage.aiRecognitionCount >= limit) {
+          console.log('AI识别权限被拒绝: 使用次数已达上限');
           return {
             allowed: false,
             reason: `本月AI识别次数已用完 (${membership.usage.aiRecognitionCount}/${limit})`,
@@ -284,6 +295,7 @@ export const useMembershipStore = create<MembershipStore>()(
           };
         }
 
+        console.log('AI识别权限通过');
         return { 
           allowed: true,
           currentUsage: membership.usage.aiRecognitionCount,

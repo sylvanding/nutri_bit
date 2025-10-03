@@ -293,6 +293,7 @@ const App: React.FC = () => {
   
   const [activeTab, setActiveTab] = useState('home');
   const [showCamera, setShowCamera] = useState(false);
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [showNutritionReport, setShowNutritionReport] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
   
@@ -2629,6 +2630,640 @@ const App: React.FC = () => {
     </div>
   );
 
+  // 条形码扫描界面组件
+  const BarcodeView = () => {
+    const [productInfo, setProductInfo] = useState<any>(null);
+    const [isScanning, setIsScanning] = useState(false);
+    const [servingCount, setServingCount] = useState(1); // 份量数量
+
+    // 模拟商品数据库
+    const mockProducts = [
+      {
+        name: "三只松鼠每日坚果",
+        brand: "三只松鼠",
+        barcode: "6901234567890",
+        servingSize: "25g",
+        category: "坚果零食",
+        healthScore: 85,
+        nutrition: {
+          calories: 150,
+          protein: 5.2,
+          fat: 12.5,
+          carbs: 8.3,
+          fiber: 2.1,
+          sodium: 45
+        },
+        ingredients: "核桃仁、腰果、蔓越莓干、蓝莓干、黑加仑干等",
+        healthTips: ["富含不饱和脂肪酸", "适量食用有益心血管健康", "建议作为加餐食用"]
+      },
+      {
+        name: "蒙牛纯牛奶",
+        brand: "蒙牛",
+        barcode: "6923450657041",
+        servingSize: "250ml",
+        category: "乳制品",
+        healthScore: 92,
+        nutrition: {
+          calories: 160,
+          protein: 7.8,
+          fat: 9.0,
+          carbs: 12.5,
+          fiber: 0,
+          sodium: 95
+        },
+        ingredients: "生牛乳",
+        healthTips: ["优质蛋白质来源", "富含钙质", "适合早餐搭配"]
+      },
+      {
+        name: "好想你红枣",
+        brand: "好想你",
+        barcode: "6921168509362",
+        servingSize: "40g",
+        category: "干果",
+        healthScore: 78,
+        nutrition: {
+          calories: 110,
+          protein: 1.2,
+          fat: 0.3,
+          carbs: 27.5,
+          fiber: 3.8,
+          sodium: 8
+        },
+        ingredients: "红枣",
+        healthTips: ["补血养颜", "富含膳食纤维", "糖分较高，适量食用"]
+      }
+    ];
+
+    // 模拟条形码扫描
+    const simulateBarcodeScan = () => {
+      // 如果正在扫描，重新开始扫描
+      if (isScanning) {
+        setIsScanning(false);
+        setTimeout(() => setIsScanning(true), 100);
+      } else {
+        setIsScanning(true);
+      }
+      
+      setTimeout(() => {
+        // 随机选择一个商品
+        const randomProduct = mockProducts[Math.floor(Math.random() * mockProducts.length)];
+        setIsScanning(false);
+        setProductInfo(randomProduct);
+        setServingCount(1); // 重置份量
+      }, 2000);
+    };
+
+    // 调整份量
+    const adjustServing = (delta: number) => {
+      const newCount = Math.max(1, Math.min(10, servingCount + delta));
+      setServingCount(newCount);
+    };
+
+    // 计算实际营养值（根据份量）
+    const getActualNutrition = (value: number) => {
+      return (value * servingCount).toFixed(1);
+    };
+
+    // 计算营养素每日推荐摄入量百分比
+    const getDailyPercentage = (nutrient: string, value: number) => {
+      const dailyValues: Record<string, number> = {
+        calories: 2000,
+        protein: 60,
+        fat: 60,
+        carbs: 300,
+        fiber: 25,
+        sodium: 2000
+      };
+      return Math.round((value * servingCount / dailyValues[nutrient]) * 100);
+    };
+
+    return (
+      <div className="fixed inset-0 bg-gradient-to-br from-gray-900/95 via-black/95 to-orange-900/95 backdrop-blur-2xl z-50 overflow-hidden">
+        {/* 动态背景粒子 */}
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(20)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-1 h-1 bg-white rounded-full opacity-20"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animation: `particle-float ${6 + Math.random() * 4}s linear infinite`,
+                animationDelay: `${Math.random() * 5}s`
+              }}
+            />
+          ))}
+        </div>
+        
+        <div className="relative h-full">
+          {/* 顶部导航栏 */}
+          <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
+            <div className="flex justify-between items-center p-6 pt-12">
+              <button 
+                onClick={() => {
+                  setShowBarcodeScanner(false);
+                  setProductInfo(null);
+                }}
+                className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/20 hover:bg-white/20 transition-all duration-300 shadow-xl transform hover:scale-110 active:scale-95"
+              >
+                ✕
+              </button>
+              <div className="text-white text-center flex-1 mx-4">
+                <div className="text-xl font-bold drop-shadow-lg mb-1 bg-gradient-to-r from-orange-300 to-red-300 bg-clip-text text-transparent">📊 条形码识别</div>
+                <div className="text-sm opacity-90 font-medium">扫描包装食品 · 快速录入</div>
+              </div>
+              <div className="relative w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-xl">
+                <span className="text-xl">📦</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* 主扫描区域 */}
+          <div className="h-full flex items-center justify-center relative overflow-hidden">
+            {/* 增强的动态背景光效 */}
+            <div className="absolute inset-0">
+              <div className="absolute top-1/4 left-1/4 w-60 h-60 bg-gradient-to-r from-orange-500/30 to-red-500/30 rounded-full blur-3xl animate-pulse"></div>
+              <div className="absolute bottom-1/3 right-1/4 w-48 h-48 bg-gradient-to-r from-red-500/25 to-pink-500/25 rounded-full blur-3xl animate-pulse delay-1000"></div>
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-gradient-to-r from-purple-500/15 to-blue-500/15 rounded-full blur-3xl animate-pulse delay-2000"></div>
+              <div className="absolute top-10 right-10 w-32 h-32 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-full blur-2xl animate-pulse delay-500"></div>
+              <div className="absolute bottom-10 left-10 w-24 h-24 bg-gradient-to-r from-pink-500/25 to-purple-500/25 rounded-full blur-2xl animate-pulse delay-1500"></div>
+            </div>
+            
+            {!productInfo ? (
+              /* 扫描框架 */
+              <div className="relative z-10">
+                <div className="w-80 h-60 relative">
+                  {/* 主框架 */}
+                  <div className="w-full h-full border-2 border-dashed border-orange-400/90 rounded-3xl relative overflow-hidden backdrop-blur-md bg-gradient-to-br from-white/10 to-white/5 shadow-2xl">
+                    {/* 科技感角落装饰 */}
+                    <div className="absolute top-3 left-3 w-8 h-8 border-l-3 border-t-3 border-orange-400 rounded-tl-xl shadow-lg"></div>
+                    <div className="absolute top-3 right-3 w-8 h-8 border-r-3 border-t-3 border-orange-400 rounded-tr-xl shadow-lg"></div>
+                    <div className="absolute bottom-3 left-3 w-8 h-8 border-l-3 border-b-3 border-orange-400 rounded-bl-xl shadow-lg"></div>
+                    <div className="absolute bottom-3 right-3 w-8 h-8 border-r-3 border-b-3 border-orange-400 rounded-br-xl shadow-lg"></div>
+                    
+                    {/* 中心内容 */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center text-white">
+                        <div className="relative w-20 h-20 mx-auto mb-6">
+                          <div className="absolute inset-0 bg-gradient-to-br from-orange-400 via-red-500 to-pink-500 rounded-full shadow-2xl animate-pulse"></div>
+                          <div className="absolute inset-2 bg-gradient-to-br from-orange-300 to-red-400 rounded-full flex items-center justify-center">
+                            <span className="text-3xl animate-bounce">📊</span>
+                          </div>
+                        </div>
+                        <div className="text-xl font-bold mb-2 drop-shadow-lg bg-gradient-to-r from-orange-300 to-red-300 bg-clip-text text-transparent">
+                          {isScanning ? '扫描条形码中...' : '将条形码对准框内'}
+                        </div>
+                        <div className="text-sm opacity-90 font-medium mb-4">快速识别 · 精准录入</div>
+                        
+                        {/* 扫描线 */}
+                        {isScanning && (
+                          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-orange-400 to-transparent animate-scan"></div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* 外围装饰环 */}
+                  <div className="absolute -inset-4 border border-orange-400/40 rounded-3xl animate-pulse shadow-lg"></div>
+                  <div className="absolute -inset-8 border border-red-400/30 rounded-3xl animate-pulse delay-1000 shadow-lg"></div>
+                </div>
+              </div>
+            ) : (
+              /* 商品信息展示 */
+              <div className="relative z-10 w-full h-full flex flex-col">
+                {/* 滚动内容区域 */}
+                <div className="flex-1 overflow-y-auto px-4 py-6 pb-32">
+                  <div className="max-w-2xl mx-auto">
+                    <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/30 overflow-hidden">
+                      {/* 商品标题 */}
+                      <div className="text-center bg-gradient-to-br from-blue-50/80 to-purple-50/80 px-6 py-8 border-b border-gray-200/50">
+                        <div className="relative inline-block mb-4">
+                          <div className="text-5xl mb-2 relative z-10 drop-shadow-lg">📦</div>
+                          <div className="absolute inset-0 bg-gradient-to-r from-blue-400/30 to-purple-400/30 rounded-full blur-2xl scale-150"></div>
+                        </div>
+                        <h3 className="text-3xl font-bold text-gray-900 mb-3 leading-tight">{productInfo.name}</h3>
+                        <p className="text-lg text-gray-600 mb-5 font-medium">{productInfo.brand}</p>
+                        <div className="flex items-center justify-center gap-3 flex-wrap">
+                          <span className="text-sm font-semibold bg-gradient-to-r from-blue-500 to-purple-500 text-white px-5 py-2.5 rounded-full shadow-lg">
+                            {productInfo.category}
+                          </span>
+                          <span className="text-xs text-gray-600 bg-white/80 px-4 py-2 rounded-full border border-gray-300 shadow-sm">
+                            条形码: {productInfo.barcode}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 内容区域 */}
+                      <div className="px-6 py-6 space-y-5">
+
+                        {/* 健康评分 */}
+                        <div className="bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 rounded-2xl p-5 border border-green-300/50 shadow-md">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex-1">
+                              <h4 className="text-xl font-bold text-gray-900 flex items-center mb-1">
+                                <span className="mr-3 text-3xl">🏆</span>
+                                健康评分
+                              </h4>
+                              <p className="text-sm text-gray-600 ml-11">基于营养成分综合评估</p>
+                            </div>
+                            <div className="text-right">
+                              <div className="relative inline-block">
+                                <div className="text-5xl font-black bg-gradient-to-br from-green-600 to-emerald-600 bg-clip-text text-transparent">{productInfo.healthScore}</div>
+                                <div className="text-sm text-gray-500 font-medium mt-1">/ 100 分</div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="relative">
+                            <div className="w-full bg-gray-200/80 rounded-full h-4 shadow-inner">
+                              <div 
+                                className="bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 h-4 rounded-full transition-all duration-1000 shadow-sm relative overflow-hidden"
+                                style={{ width: `${productInfo.healthScore}%` }}
+                              >
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-pulse"></div>
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-center mt-3">
+                              <div className="text-xs text-gray-500 font-medium">评级：</div>
+                              <div className="text-base font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                                {productInfo.healthScore >= 80 ? '🌟 优秀' : productInfo.healthScore >= 60 ? '👍 良好' : '⭕ 一般'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 营养成分 */}
+                        <div className="bg-gradient-to-br from-orange-50 via-amber-50 to-red-50 rounded-2xl p-5 border border-orange-300/50 shadow-md">
+                          <div className="flex items-center justify-between mb-5">
+                            <h4 className="text-xl font-bold text-gray-900 flex items-center">
+                              <span className="mr-3 text-3xl">🥗</span>
+                              <div>
+                                <div className="leading-tight">营养成分</div>
+                                <div className="text-xs text-gray-600 font-normal mt-1">每 {productInfo.servingSize}</div>
+                              </div>
+                            </h4>
+                            {servingCount > 1 && (
+                              <span className="text-sm font-bold bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-full shadow-lg">
+                                × {servingCount} 份
+                              </span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 gap-4">
+                            {/* 热量 - 主要指标 */}
+                            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border-2 border-orange-300/50 shadow-lg">
+                              <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center flex-1">
+                                  <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl flex items-center justify-center mr-4 shadow-lg transform hover:scale-110 transition-transform">
+                                    <span className="text-white text-2xl">🔥</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-lg font-bold text-gray-900 block">热量</span>
+                                    <div className="text-xs text-gray-500 mt-0.5">主要能量来源</div>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-3xl font-black bg-gradient-to-br from-orange-600 to-red-600 bg-clip-text text-transparent">
+                                    {getActualNutrition(productInfo.nutrition.calories)}
+                                  </div>
+                                  <span className="text-sm text-gray-600 font-medium">千卡</span>
+                                </div>
+                              </div>
+                              <div className="relative">
+                                <div className="w-full bg-gray-200 rounded-full h-3 shadow-inner overflow-hidden">
+                                  <div 
+                                    className="bg-gradient-to-r from-orange-400 via-orange-500 to-red-500 h-3 rounded-full transition-all duration-1000 shadow-sm relative"
+                                    style={{ width: `${Math.min(getDailyPercentage('calories', productInfo.nutrition.calories), 100)}%` }}
+                                  >
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-pulse"></div>
+                                  </div>
+                                </div>
+                                <div className="flex justify-between items-center mt-2">
+                                  <span className="text-xs text-gray-500 font-medium">每日推荐</span>
+                                  <span className="text-sm font-bold text-orange-600">
+                                    {getDailyPercentage('calories', productInfo.nutrition.calories)}%
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 其他营养成分 - 2列网格 */}
+                            <div className="grid grid-cols-2 gap-3">
+                              {/* 蛋白质 */}
+                              <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-blue-300/50 shadow-md hover:shadow-lg transition-shadow">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center flex-1 min-w-0">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center mr-2 shadow-md flex-shrink-0">
+                                      <span className="text-white text-lg">💪</span>
+                                    </div>
+                                    <span className="text-sm font-bold text-gray-900 truncate">蛋白质</span>
+                                  </div>
+                                  <span className="text-xl font-black text-blue-600 ml-2">{getActualNutrition(productInfo.nutrition.protein)}<span className="text-xs font-medium">g</span></span>
+                                </div>
+                                <div className="w-full bg-blue-100 rounded-full h-2 mb-1.5 overflow-hidden shadow-inner">
+                                  <div 
+                                    className="bg-gradient-to-r from-blue-400 to-blue-600 h-2 rounded-full transition-all duration-700"
+                                    style={{ width: `${Math.min(getDailyPercentage('protein', productInfo.nutrition.protein), 100)}%` }}
+                                  ></div>
+                                </div>
+                                <div className="text-xs font-semibold text-blue-600 text-right">
+                                  {getDailyPercentage('protein', productInfo.nutrition.protein)}% DV
+                                </div>
+                              </div>
+
+                              {/* 碳水化合物 */}
+                              <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-green-300/50 shadow-md hover:shadow-lg transition-shadow">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center flex-1 min-w-0">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-green-600 rounded-xl flex items-center justify-center mr-2 shadow-md flex-shrink-0">
+                                      <span className="text-white text-lg">🌾</span>
+                                    </div>
+                                    <span className="text-sm font-bold text-gray-900 truncate">碳水</span>
+                                  </div>
+                                  <span className="text-xl font-black text-green-600 ml-2">{getActualNutrition(productInfo.nutrition.carbs)}<span className="text-xs font-medium">g</span></span>
+                                </div>
+                                <div className="w-full bg-green-100 rounded-full h-2 mb-1.5 overflow-hidden shadow-inner">
+                                  <div 
+                                    className="bg-gradient-to-r from-green-400 to-green-600 h-2 rounded-full transition-all duration-700"
+                                    style={{ width: `${Math.min(getDailyPercentage('carbs', productInfo.nutrition.carbs), 100)}%` }}
+                                  ></div>
+                                </div>
+                                <div className="text-xs font-semibold text-green-600 text-right">
+                                  {getDailyPercentage('carbs', productInfo.nutrition.carbs)}% DV
+                                </div>
+                              </div>
+
+                              {/* 脂肪 */}
+                              <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-yellow-300/50 shadow-md hover:shadow-lg transition-shadow">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center flex-1 min-w-0">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-xl flex items-center justify-center mr-2 shadow-md flex-shrink-0">
+                                      <span className="text-white text-lg">🥑</span>
+                                    </div>
+                                    <span className="text-sm font-bold text-gray-900 truncate">脂肪</span>
+                                  </div>
+                                  <span className="text-xl font-black text-yellow-600 ml-2">{getActualNutrition(productInfo.nutrition.fat)}<span className="text-xs font-medium">g</span></span>
+                                </div>
+                                <div className="w-full bg-yellow-100 rounded-full h-2 mb-1.5 overflow-hidden shadow-inner">
+                                  <div 
+                                    className="bg-gradient-to-r from-yellow-400 to-yellow-600 h-2 rounded-full transition-all duration-700"
+                                    style={{ width: `${Math.min(getDailyPercentage('fat', productInfo.nutrition.fat), 100)}%` }}
+                                  ></div>
+                                </div>
+                                <div className="text-xs font-semibold text-yellow-600 text-right">
+                                  {getDailyPercentage('fat', productInfo.nutrition.fat)}% DV
+                                </div>
+                              </div>
+
+                              {/* 膳食纤维 */}
+                              <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-purple-300/50 shadow-md hover:shadow-lg transition-shadow">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center flex-1 min-w-0">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl flex items-center justify-center mr-2 shadow-md flex-shrink-0">
+                                      <span className="text-white text-lg">🌿</span>
+                                    </div>
+                                    <span className="text-sm font-bold text-gray-900 truncate">纤维</span>
+                                  </div>
+                                  <span className="text-xl font-black text-purple-600 ml-2">{getActualNutrition(productInfo.nutrition.fiber)}<span className="text-xs font-medium">g</span></span>
+                                </div>
+                                <div className="w-full bg-purple-100 rounded-full h-2 mb-1.5 overflow-hidden shadow-inner">
+                                  <div 
+                                    className="bg-gradient-to-r from-purple-400 to-purple-600 h-2 rounded-full transition-all duration-700"
+                                    style={{ width: `${Math.min(getDailyPercentage('fiber', productInfo.nutrition.fiber), 100)}%` }}
+                                  ></div>
+                                </div>
+                                <div className="text-xs font-semibold text-purple-600 text-right">
+                                  {getDailyPercentage('fiber', productInfo.nutrition.fiber)}% DV
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 钠 - 需要特别关注 */}
+                            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border-2 border-red-300/50 shadow-lg">
+                              <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center flex-1">
+                                  <div className="w-14 h-14 bg-gradient-to-br from-red-400 to-red-600 rounded-2xl flex items-center justify-center mr-4 shadow-lg transform hover:scale-110 transition-transform">
+                                    <span className="text-white text-2xl">🧂</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-lg font-bold text-gray-900 block">钠</span>
+                                    <div className="text-xs text-gray-500 mt-0.5">需要控制摄入量</div>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-3xl font-black bg-gradient-to-br from-red-600 to-pink-600 bg-clip-text text-transparent">
+                                    {getActualNutrition(productInfo.nutrition.sodium)}
+                                  </div>
+                                  <span className="text-sm text-gray-600 font-medium">mg</span>
+                                </div>
+                              </div>
+                              <div className="relative">
+                                <div className="w-full bg-gray-200 rounded-full h-3 shadow-inner overflow-hidden">
+                                  <div 
+                                    className="bg-gradient-to-r from-red-400 via-red-500 to-pink-500 h-3 rounded-full transition-all duration-1000 shadow-sm relative"
+                                    style={{ width: `${Math.min(getDailyPercentage('sodium', productInfo.nutrition.sodium), 100)}%` }}
+                                  >
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-pulse"></div>
+                                  </div>
+                                </div>
+                                <div className="flex justify-between items-center mt-2">
+                                  <span className="text-xs text-gray-500 font-medium">每日推荐</span>
+                                  <span className="text-sm font-bold text-red-600">
+                                    {getDailyPercentage('sodium', productInfo.nutrition.sodium)}%
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* DV 说明 */}
+                            <div className="text-center py-2">
+                              <span className="text-xs text-gray-500 bg-gray-100 px-4 py-2 rounded-full inline-block">
+                                💡 DV = 每日推荐摄入量 (Daily Value)
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 配料表 */}
+                        <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-2xl p-5 border border-gray-300/50 shadow-md">
+                          <h4 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                            <div className="w-12 h-12 bg-gradient-to-br from-gray-500 to-slate-600 rounded-xl flex items-center justify-center mr-3 shadow-md">
+                              <span className="text-white text-2xl">📋</span>
+                            </div>
+                            配料表
+                          </h4>
+                          <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-gray-300/50 shadow-sm">
+                            <p className="text-sm text-gray-800 leading-relaxed font-medium">{productInfo.ingredients}</p>
+                          </div>
+                        </div>
+                        
+                        {/* 健康小贴士 */}
+                        <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-5 border border-blue-300/50 shadow-md">
+                          <h4 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center mr-3 shadow-md">
+                              <span className="text-white text-2xl">💡</span>
+                            </div>
+                            健康小贴士
+                          </h4>
+                          <div className="space-y-3">
+                            {productInfo.healthTips.map((tip: string, index: number) => (
+                              <div key={index} className="flex items-start bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-blue-300/40 shadow-sm hover:shadow-md transition-shadow">
+                                <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center mr-3 mt-0.5 shadow-md flex-shrink-0">
+                                  <span className="text-white text-sm font-bold">✓</span>
+                                </div>
+                                <span className="text-sm text-gray-800 leading-relaxed font-medium">{tip}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 份量调整 */}
+                        <div className="bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 rounded-2xl p-5 border border-purple-300/50 shadow-md">
+                          <h4 className="text-xl font-bold text-gray-900 mb-5 flex items-center">
+                            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center mr-3 shadow-md">
+                              <span className="text-white text-2xl">⚖️</span>
+                            </div>
+                            实际食用份量
+                          </h4>
+                          <div className="flex items-center justify-between bg-white/80 backdrop-blur-sm rounded-xl p-5 border border-purple-300/40 shadow-sm">
+                            <button 
+                              onClick={() => adjustServing(-1)}
+                              disabled={servingCount <= 1}
+                              className={`w-16 h-16 bg-gradient-to-br from-white to-gray-50 rounded-2xl flex items-center justify-center shadow-md hover:shadow-lg transition-all text-3xl font-black border-2 ${
+                                servingCount <= 1 
+                                  ? 'text-gray-300 cursor-not-allowed border-gray-200' 
+                                  : 'text-purple-600 hover:bg-purple-50 border-purple-300 hover:border-purple-400 hover:scale-110 active:scale-95'
+                              }`}
+                            >
+                              −
+                            </button>
+                            <div className="text-center px-6">
+                              <div className="text-5xl font-black bg-gradient-to-br from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">{servingCount}</div>
+                              <div className="text-base font-bold text-gray-700 mb-2">份 <span className="text-sm text-gray-500">({productInfo.servingSize})</span></div>
+                              <div className="text-xs font-bold text-purple-600 bg-purple-100 px-3 py-1.5 rounded-full inline-block">
+                                共 {(parseFloat(productInfo.servingSize) * servingCount).toFixed(0)}{productInfo.servingSize.replace(/[0-9]/g, '')}
+                              </div>
+                            </div>
+                            <button 
+                              onClick={() => adjustServing(1)}
+                              disabled={servingCount >= 10}
+                              className={`w-16 h-16 bg-gradient-to-br from-white to-gray-50 rounded-2xl flex items-center justify-center shadow-md hover:shadow-lg transition-all text-3xl font-black border-2 ${
+                                servingCount >= 10 
+                                  ? 'text-gray-300 cursor-not-allowed border-gray-200' 
+                                  : 'text-purple-600 hover:bg-purple-50 border-purple-300 hover:border-purple-400 hover:scale-110 active:scale-95'
+                              }`}
+                            >
+                              +
+                            </button>
+                          </div>
+                          <div className="mt-3 text-xs text-center text-gray-500 bg-white/60 backdrop-blur-sm rounded-full py-2.5 px-4 font-medium">
+                            💡 可选择 1-10 份，点击按钮快速调整
+                          </div>
+                        </div>
+                        
+                        {/* 营养总结 */}
+                        <div className="bg-gradient-to-br from-slate-50 via-gray-50 to-zinc-50 rounded-2xl p-5 border border-gray-300/50 shadow-md">
+                          <h4 className="text-xl font-bold text-gray-900 mb-5 flex items-center">
+                            <div className="w-12 h-12 bg-gradient-to-br from-slate-500 to-gray-600 rounded-xl flex items-center justify-center mr-3 shadow-md">
+                              <span className="text-white text-2xl">📊</span>
+                            </div>
+                            本次摄入总计
+                          </h4>
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="text-center bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-orange-300/50 shadow-sm hover:shadow-md transition-shadow">
+                              <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-md">
+                                <span className="text-white text-2xl">🔥</span>
+                              </div>
+                              <div className="text-3xl font-black bg-gradient-to-br from-orange-600 to-red-600 bg-clip-text text-transparent mb-1">{getActualNutrition(productInfo.nutrition.calories)}</div>
+                              <div className="text-xs text-gray-600 font-bold">千卡</div>
+                            </div>
+                            <div className="text-center bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-blue-300/50 shadow-sm hover:shadow-md transition-shadow">
+                              <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-md">
+                                <span className="text-white text-2xl">💪</span>
+                              </div>
+                              <div className="text-3xl font-black bg-gradient-to-br from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-1">{getActualNutrition(productInfo.nutrition.protein)}<span className="text-base">g</span></div>
+                              <div className="text-xs text-gray-600 font-bold">蛋白质</div>
+                            </div>
+                            <div className="text-center bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-green-300/50 shadow-sm hover:shadow-md transition-shadow">
+                              <div className="w-14 h-14 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-md">
+                                <span className="text-white text-2xl">🌾</span>
+                              </div>
+                              <div className="text-3xl font-black bg-gradient-to-br from-green-600 to-emerald-600 bg-clip-text text-transparent mb-1">{getActualNutrition(productInfo.nutrition.carbs)}<span className="text-base">g</span></div>
+                              <div className="text-xs text-gray-600 font-bold">碳水</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+
+                {/* 固定底部操作按钮 */}
+                <div className="fixed bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/90 via-black/60 to-transparent backdrop-blur-xl pt-8 pb-6 px-4">
+                  <div className="max-w-2xl mx-auto flex gap-4">
+                    <button 
+                      onClick={() => {
+                        setProductInfo(null);
+                        setIsScanning(true);
+                        setServingCount(1);
+                      }}
+                      className="flex-1 bg-gradient-to-br from-gray-200 to-gray-300 text-gray-800 py-4 px-6 rounded-2xl font-bold hover:from-gray-300 hover:to-gray-400 transition-all shadow-xl hover:shadow-2xl border-2 border-gray-400/50 backdrop-blur-sm flex items-center justify-center space-x-2 hover:scale-105 active:scale-95 transform"
+                    >
+                      <span className="text-2xl">🔄</span>
+                      <span className="text-lg">重新扫描</span>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        const totalCalories = getActualNutrition(productInfo.nutrition.calories);
+                        alert(`✅ 已添加到今日餐食记录\n\n${productInfo.name}\n份量：${servingCount}份\n热量：${totalCalories}千卡`);
+                        setShowBarcodeScanner(false);
+                        setProductInfo(null);
+                        setServingCount(1);
+                      }}
+                      className="flex-[2] bg-gradient-to-br from-orange-500 via-red-500 to-pink-600 text-white py-4 px-8 rounded-2xl font-bold hover:from-orange-600 hover:via-red-600 hover:to-pink-700 transition-all shadow-xl hover:shadow-2xl border-2 border-orange-400/50 backdrop-blur-sm flex items-center justify-center space-x-3 hover:scale-105 active:scale-95 relative overflow-hidden transform"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                      <span className="text-2xl relative z-10">✓</span>
+                      <span className="relative z-10 text-lg">确认添加到今日餐食</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* 底部操作按钮 */}
+          {!productInfo && (
+            <div className="absolute bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none">
+              <div className="flex justify-center items-center px-8 pt-8 pb-6 pointer-events-auto">
+                <button 
+                  onClick={simulateBarcodeScan}
+                  className={`w-24 h-24 bg-gradient-to-br from-orange-400 via-red-500 to-pink-600 rounded-full flex items-center justify-center text-white border-4 border-white shadow-2xl transition-all duration-500 relative z-50 hover:scale-110 active:scale-95 transform hover:rotate-12 active:rotate-0 ${
+                    isScanning ? 'animate-pulse' : ''
+                  }`}
+                  style={{ pointerEvents: 'auto' }}
+                >
+                  <span className="text-4xl drop-shadow-lg">📊</span>
+                </button>
+              </div>
+              
+              {/* 功能提示栏 */}
+              <div className="flex justify-center space-x-3 pt-8 pb-6 pointer-events-auto">
+                <div className="flex items-center space-x-2 text-white/90 bg-gradient-to-r from-orange-500/20 to-red-500/20 backdrop-blur-sm px-4 py-2 rounded-full border border-orange-400/30">
+                  <div className="w-2.5 h-2.5 bg-orange-400 rounded-full animate-pulse shadow-lg"></div>
+                  <span className="text-sm font-semibold">快速识别</span>
+                </div>
+                <div className="flex items-center space-x-2 text-white/90 bg-gradient-to-r from-red-500/20 to-pink-500/20 backdrop-blur-sm px-4 py-2 rounded-full border border-red-400/30">
+                  <div className="w-2.5 h-2.5 bg-red-400 rounded-full animate-pulse delay-300 shadow-lg"></div>
+                  <span className="text-sm font-semibold">精准录入</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // AI分析流程组件 - 超美化版
   const AIAnalysisModal = () => {
     return (
@@ -4575,6 +5210,22 @@ const App: React.FC = () => {
     const generateAIResponse = (userMessage: string): { text: string; card?: any; hasCard?: boolean } => {
       const message = userMessage.toLowerCase();
       
+      // 语音记录餐食处理
+      if (message.includes('[语音记录]') || message.includes('刚吃了') || message.includes('刚喝了') || (message.includes('吃了') && !message.includes('想吃'))) {
+        // 提取菜品信息（这里是模拟，实际应调用NLP API）
+        const detectedFoods = [];
+        if (message.includes('牛肉拉面')) detectedFoods.push({ name: '牛肉拉面', calories: 550, protein: 25, carbs: 75 });
+        if (message.includes('煎蛋')) detectedFoods.push({ name: '煎蛋', calories: 90, protein: 6, carbs: 1 });
+        
+        const totalCalories = detectedFoods.reduce((sum, food) => sum + food.calories, 0);
+        const foodList = detectedFoods.map(f => f.name).join('、');
+        
+        return {
+          text: `好的！我识别到您吃了：${foodList || '一些美食'}。\n\n预计摄入：${totalCalories || '约500'}千卡\n\n已为您自动记录，要不要查看详细的营养分析？📊`,
+          hasCard: false
+        };
+      }
+      
       if (message.includes('吃什么') || message.includes('推荐') || message.includes('晚餐') || message.includes('午餐') || message.includes('早餐')) {
         const suggestions = [
           "蒜蓉西兰花炒虾仁配糙米饭",
@@ -4944,8 +5595,26 @@ const App: React.FC = () => {
           {/* 输入区域 - 增强设计 */}
           <div className="p-4 bg-white border-t border-gray-200">
             <div className="flex items-center bg-gray-100 rounded-2xl px-4 py-3">
-              <button className="text-gray-400 hover:text-green-500 mr-3 transition-colors">
-                📷
+              <button 
+                onClick={() => {
+                  // 触发语音记录餐食功能
+                  setIsListening(true);
+                  setKakaStatus('thinking');
+                  setTimeout(() => {
+                    const mealText = "我刚吃了一碗牛肉拉面和一个煎蛋";
+                    setInputText(mealText);
+                    setIsListening(false);
+                    setKakaStatus('online');
+                    // 自动发送消息
+                    setTimeout(() => {
+                      sendMessage(`[语音记录] ${mealText}`);
+                    }, 500);
+                  }, 2000);
+                }}
+                className="text-gray-400 hover:text-green-500 mr-3 transition-colors"
+                title="语音记录餐食"
+              >
+                🍴
               </button>
               <input 
                 type="text" 
@@ -5081,42 +5750,78 @@ const App: React.FC = () => {
           </h2>
           
           {/* 主要功能按钮 */}
-          <div className="grid grid-cols-2 gap-4 mb-5">
-            <button 
-              onClick={async () => {
-                await executeWithPermission(
-                  'ai_recognition',
-                  () => {
-                    setShowCamera(true);
-                    return Promise.resolve();
-                  },
-                  {
-                    autoPromptUpgrade: true,
-                    onDenied: (reason) => {
-                      console.log('AI识别权限不足:', reason);
+          <div className="space-y-4 mb-5">
+            {/* 第一行：拍照和条形码 */}
+            <div className="grid grid-cols-2 gap-4">
+              <button 
+                onClick={async () => {
+                  await executeWithPermission(
+                    'ai_recognition',
+                    () => {
+                      setShowCamera(true);
+                      return Promise.resolve();
+                    },
+                    {
+                      autoPromptUpgrade: true,
+                      onDenied: (reason) => {
+                        console.log('AI识别权限不足:', reason);
+                      }
                     }
-                  }
-                );
-              }}
-              className="group bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-2xl flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 relative"
-            >
-              <div className="bg-white/20 rounded-full p-2">
-                <Camera size={20} />
-              </div>
-              <div className="text-left">
-                <div className="font-bold text-base">拍照记录</div>
-                <div className="text-green-100 text-xs">AI智能识别</div>
-              </div>
-              {!permissions.hasUnlimitedAi && (
-                <div className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full shadow-md">
-                  {membership.remainingUsage?.aiRecognition || 0}
+                  );
+                }}
+                className="group bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-2xl flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 relative"
+              >
+                <div className="bg-white/20 rounded-full p-2">
+                  <Camera size={20} />
                 </div>
-              )}
-            </button>
+                <div className="text-left">
+                  <div className="font-bold text-base">拍照记录</div>
+                  <div className="text-green-100 text-xs">AI智能识别</div>
+                </div>
+                {!permissions.hasUnlimitedAi && (
+                  <div className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full shadow-md">
+                    {membership.remainingUsage?.aiRecognition || 0}
+                  </div>
+                )}
+              </button>
+              
+              <button 
+                onClick={async () => {
+                  await executeWithPermission(
+                    'ai_recognition',
+                    () => {
+                      setShowBarcodeScanner(true);
+                      return Promise.resolve();
+                    },
+                    {
+                      autoPromptUpgrade: true,
+                      onDenied: (reason) => {
+                        console.log('AI识别权限不足:', reason);
+                      }
+                    }
+                  );
+                }}
+                className="group bg-gradient-to-r from-orange-500 to-red-600 text-white p-4 rounded-2xl flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 relative"
+              >
+                <div className="bg-white/20 rounded-full p-2">
+                  <span className="text-xl">📊</span>
+                </div>
+                <div className="text-left">
+                  <div className="font-bold text-base">扫码识别</div>
+                  <div className="text-orange-100 text-xs">包装食品</div>
+                </div>
+                {!permissions.hasUnlimitedAi && (
+                  <div className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full shadow-md">
+                    {membership.remainingUsage?.aiRecognition || 0}
+                  </div>
+                )}
+              </button>
+            </div>
             
+            {/* 第二行：AI推荐 */}
             <button 
               onClick={() => setActiveTab('recipes')}
-              className="group bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-2xl flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
+              className="group w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-2xl flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
             >
               <div className="bg-white/20 rounded-full p-2">
                 <BookOpen size={20} />
@@ -7811,6 +8516,7 @@ const App: React.FC = () => {
 
       {/* Modals */}
       {showCamera && <CameraView />}
+      {showBarcodeScanner && <BarcodeView />}
       {showAIAnalysis && <AIAnalysisModal />}
       {showMealSelection && <MealSelectionModal />}
       {showSmartAdjustment && <SmartAdjustmentModal />}

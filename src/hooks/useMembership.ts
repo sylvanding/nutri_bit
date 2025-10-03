@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useMembershipStore } from '../stores/membershipStore';
 import { MembershipTier, PermissionCheckResult } from '../types/membership';
+import { useAuthStore } from '../stores/authStore';
 
 /**
  * 会员权限管理Hook
@@ -37,9 +38,28 @@ export const useMembership = () => {
 
   // 初始化会员信息
   useEffect(() => {
-    // 在实际应用中，这里应该从用户认证store获取userId
-    const userId = 'current_user'; // 暂时使用固定值
-    initializeMembership(userId);
+    // 从用户认证store获取userId
+    const { user, isAuthenticated } = useAuthStore.getState();
+    console.log('会员系统初始化 - 用户状态:', { user, isAuthenticated });
+    if (isAuthenticated && user?.id) {
+      console.log('初始化会员信息，用户ID:', user.id);
+      initializeMembership(user.id.toString());
+    }
+  }, [initializeMembership]);
+
+  // 监听用户认证状态变化
+  useEffect(() => {
+    const unsubscribe = useAuthStore.subscribe(
+      (state) => state.user,
+      (user) => {
+        console.log('用户状态变化:', user);
+        if (user?.id) {
+          console.log('重新初始化会员信息，用户ID:', user.id);
+          initializeMembership(user.id.toString());
+        }
+      }
+    );
+    return unsubscribe;
   }, [initializeMembership]);
 
   // 会员状态信息
@@ -259,9 +279,12 @@ export const useMembershipGuard = () => {
       autoPromptUpgrade?: boolean;
     }
   ): Promise<T | null> => {
+    console.log(`检查功能权限: ${feature}`);
     const permission = checkFeaturePermission(feature);
+    console.log(`权限检查结果:`, permission);
     
     if (!permission.allowed) {
+      console.log(`权限被拒绝: ${permission.reason}`);
       if (options?.onDenied) {
         options.onDenied(permission.reason || '权限不足');
       } else if (permission.upgradeRequired) {
@@ -273,6 +296,7 @@ export const useMembershipGuard = () => {
     }
 
     try {
+      console.log(`执行功能: ${feature}`);
       const result = await action();
       
       // 记录使用情况
