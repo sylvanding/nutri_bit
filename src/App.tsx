@@ -25,6 +25,25 @@ interface NutritionData {
   fiber: number;
 }
 
+// 智能微调系统相关接口
+interface AdjustmentSettings {
+  scenario: 'home' | 'restaurant' | 'canteen'; // 场景
+  taste: 'light' | 'normal' | 'heavy'; // 口味
+  portion: 'small' | 'medium' | 'large'; // 份量
+}
+
+interface AdjustmentCoefficients {
+  scenario: number;
+  taste: number;
+  portion: number;
+}
+
+interface AdjustedNutrition extends NutritionData {
+  originalNutrition: NutritionData;
+  adjustmentSettings: AdjustmentSettings;
+  coefficients: AdjustmentCoefficients;
+}
+
 interface MealRecord {
   id: string;
   image: string;
@@ -297,6 +316,31 @@ const App: React.FC = () => {
   const [showMealSelection, setShowMealSelection] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   
+  // 智能微调系统状态 - 从localStorage加载用户偏好
+  const [showSmartAdjustment, setShowSmartAdjustment] = useState(false);
+  const [adjustmentSettings, setAdjustmentSettings] = useState<AdjustmentSettings>(() => {
+    // 尝试从localStorage加载用户上次的设置
+    const savedSettings = localStorage.getItem('nutri_adjustment_settings');
+    if (savedSettings) {
+      try {
+        return JSON.parse(savedSettings);
+      } catch (e) {
+        console.error('Failed to parse saved adjustment settings:', e);
+      }
+    }
+    return {
+      scenario: 'home',
+      taste: 'normal',
+      portion: 'medium'
+    };
+  });
+  const [adjustedNutritionData, setAdjustedNutritionData] = useState<NutritionData | null>(null);
+  
+  // 保存用户偏好到localStorage
+  React.useEffect(() => {
+    localStorage.setItem('nutri_adjustment_settings', JSON.stringify(adjustmentSettings));
+  }, [adjustmentSettings]);
+  
   // 菜品修正相关状态
   const [showFoodCorrectionModal, setShowFoodCorrectionModal] = useState(false);
   const [correctionFoodIndex, setCorrectionFoodIndex] = useState<number>(-1);
@@ -322,6 +366,58 @@ const App: React.FC = () => {
     { id: 15, name: '煎饺', category: '点心', calories: 200, protein: 10, carbs: 25, fat: 8, description: '外焦内嫩，香味浓郁' }
   ];
   
+  // 智能微调系统：计算调整系数
+  const calculateAdjustmentCoefficients = (settings: AdjustmentSettings): AdjustmentCoefficients => {
+    // 场景系数：家常菜(1.0)、餐厅(1.25)、食堂(1.1)
+    const scenarioCoefficients = {
+      home: 1.0,
+      restaurant: 1.25,
+      canteen: 1.1
+    };
+    
+    // 口味系数：清淡(0.7)、适中(1.0)、重口味(1.4)
+    const tasteCoefficients = {
+      light: 0.7,
+      normal: 1.0,
+      heavy: 1.4
+    };
+    
+    // 份量系数：小份(0.7)、中份(1.0)、大份(1.5)
+    const portionCoefficients = {
+      small: 0.7,
+      medium: 1.0,
+      large: 1.5
+    };
+    
+    return {
+      scenario: scenarioCoefficients[settings.scenario],
+      taste: tasteCoefficients[settings.taste],
+      portion: portionCoefficients[settings.portion]
+    };
+  };
+  
+  // 智能微调系统：应用调整系数到营养数据
+  const applyNutritionAdjustment = (
+    originalNutrition: NutritionData, 
+    settings: AdjustmentSettings
+  ): NutritionData => {
+    const coefficients = calculateAdjustmentCoefficients(settings);
+    
+    // 计算综合调整系数
+    // 场景和口味主要影响脂肪和钠，份量影响所有营养素
+    const fatAndSodiumCoefficient = coefficients.scenario * coefficients.taste;
+    const portionCoefficient = coefficients.portion;
+    
+    return {
+      calories: Math.round(originalNutrition.calories * portionCoefficient * (1 + (fatAndSodiumCoefficient - 1) * 0.3)),
+      protein: Math.round(originalNutrition.protein * portionCoefficient * 10) / 10,
+      carbs: Math.round(originalNutrition.carbs * portionCoefficient * 10) / 10,
+      fat: Math.round(originalNutrition.fat * portionCoefficient * fatAndSodiumCoefficient * 10) / 10,
+      sodium: Math.round(originalNutrition.sodium * portionCoefficient * fatAndSodiumCoefficient),
+      fiber: Math.round(originalNutrition.fiber * portionCoefficient * 10) / 10
+    };
+  };
+
   // 重新计算营养摘要的函数
   const recalculateNutritionSummary = (detectedFoods: any[]) => {
     const totalCalories = detectedFoods.reduce((sum, food) => sum + food.nutrition.calories, 0);
@@ -2805,6 +2901,33 @@ const App: React.FC = () => {
                 </div>
               </div>
               
+              {/* 智能微调按钮 - 新功能突出显示 */}
+              <div className="relative mb-4">
+                <button
+                  onClick={() => {
+                    setShowAIAnalysis(false);
+                    setShowSmartAdjustment(true);
+                  }}
+                  className="w-full relative py-4 px-6 bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500 text-white rounded-2xl font-bold hover:from-purple-600 hover:via-pink-600 hover:to-rose-600 transition-all duration-500 shadow-lg hover:shadow-2xl transform hover:scale-105 hover:-translate-y-1 active:scale-95 active:translate-y-0 overflow-hidden group"
+                >
+                  {/* 动画背景 */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-rose-600 animate-pulse opacity-50"></div>
+                  
+                  {/* NEW标签 */}
+                  <div className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full shadow-lg animate-bounce">
+                    NEW
+                  </div>
+                  
+                  <div className="relative flex items-center justify-center space-x-2">
+                    <Wand2 size={20} className="text-white" />
+                    <span className="text-lg">🎯 智能微调系统</span>
+                    <Sparkles size={16} className="text-white animate-pulse" />
+                  </div>
+                  <div className="text-xs text-white/90 mt-1">精准调整场景、口味、份量</div>
+                </button>
+              </div>
+              
               {/* 操作按钮 - 超美化版 */}
               <div className="relative flex space-x-4">
                 <button
@@ -2962,6 +3085,307 @@ const App: React.FC = () => {
                 确认分析
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // 智能微调系统界面
+  const SmartAdjustmentModal = () => {
+    // 使用分析结果中的营养数据作为原始数据
+    const originalNutrition = analysisResults?.nutritionSummary || {
+      calories: 520,
+      protein: 28,
+      carbs: 45,
+      fat: 22,
+      sodium: 680,
+      fiber: 3
+    };
+
+    // 实时计算调整后的营养数据
+    const adjustedNutrition = React.useMemo(() => {
+      return applyNutritionAdjustment(originalNutrition, adjustmentSettings);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [adjustmentSettings.scenario, adjustmentSettings.taste, adjustmentSettings.portion, originalNutrition.calories, originalNutrition.protein, originalNutrition.carbs, originalNutrition.fat, originalNutrition.sodium, originalNutrition.fiber]);
+
+    // 计算营养变化百分比
+    const calculateChange = (original: number, adjusted: number) => {
+      const change = ((adjusted - original) / original) * 100;
+      return Math.round(change);
+    };
+
+    const renderNutrientComparison = (
+      name: string,
+      icon: string,
+      unit: string,
+      originalValue: number,
+      adjustedValue: number,
+      color: string
+    ) => {
+      const change = calculateChange(originalValue, adjustedValue);
+      return (
+        <div className={`bg-gradient-to-br ${color} rounded-2xl p-4 shadow-md border border-white/50`}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center space-x-2">
+              <span className="text-2xl">{icon}</span>
+              <span className="font-semibold text-gray-800">{name}</span>
+            </div>
+            <span className="text-xs font-medium text-gray-600">{unit}</span>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">原始值</span>
+              <span className="font-medium text-gray-700">{originalValue}{unit}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">调整后</span>
+              <span className="font-bold text-gray-900 text-lg">{adjustedValue}{unit}</span>
+            </div>
+            {change !== 0 && (
+              <div className={`flex items-center justify-center text-xs font-bold ${
+                change > 0 ? 'text-red-600' : 'text-green-600'
+              }`}>
+                <span>{change > 0 ? '↑' : '↓'} {Math.abs(change)}%</span>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl my-8 max-h-[90vh] overflow-hidden flex flex-col">
+          {/* 头部 - 超美化版 */}
+          <div className="bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500 text-white p-6 relative overflow-hidden">
+            {/* 动态背景 */}
+            <div className="absolute inset-0">
+              <div className="absolute -top-4 -left-4 w-32 h-32 bg-white/10 rounded-full animate-pulse"></div>
+              <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-white/15 rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
+            </div>
+            
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                    <Wand2 size={24} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold">🎯 智能微调系统</h2>
+                    <p className="text-sm opacity-90">根据实际情况精准调整营养数据</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowSmartAdjustment(false)}
+                  className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-all"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              {/* 智能记忆提示 */}
+              <div className="mt-4 bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                <div className="flex items-center space-x-2 text-sm">
+                  <Brain size={16} className="text-white animate-pulse" />
+                  <span className="font-medium">💡 智能记忆：系统已自动记住您的常用选择，下次将优先推荐</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 内容区域 - 可滚动 */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {/* 场景选择 */}
+            <div>
+              <div className="flex items-center space-x-2 mb-4">
+                <MapPin size={20} className="text-purple-600" />
+                <h3 className="text-lg font-bold text-gray-800">用餐场景</h3>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { value: 'home' as const, label: '家常菜', icon: '🏠', desc: '少油少盐' },
+                  { value: 'restaurant' as const, label: '餐厅/外卖', icon: '🍽️', desc: '油盐较多' },
+                  { value: 'canteen' as const, label: '食堂', icon: '🏫', desc: '标准烹饪' }
+                ].map((scenario) => (
+                  <button
+                    key={scenario.value}
+                    onClick={() => setAdjustmentSettings({ ...adjustmentSettings, scenario: scenario.value })}
+                    className={`p-4 rounded-2xl border-2 transition-all transform hover:scale-105 ${
+                      adjustmentSettings.scenario === scenario.value
+                        ? 'border-purple-500 bg-purple-50 shadow-lg'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-3xl mb-2">{scenario.icon}</div>
+                    <div className="font-semibold text-gray-800 text-sm mb-1">{scenario.label}</div>
+                    <div className="text-xs text-gray-500">{scenario.desc}</div>
+                    {adjustmentSettings.scenario === scenario.value && (
+                      <div className="mt-2">
+                        <Check size={16} className="text-purple-600 mx-auto" />
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 p-3 bg-purple-50 rounded-xl border border-purple-100">
+                <p className="text-xs text-purple-700">
+                  <strong>系数：</strong>
+                  {adjustmentSettings.scenario === 'home' && '1.0x（标准）'}
+                  {adjustmentSettings.scenario === 'restaurant' && '1.25x（+25% 油盐脂肪）'}
+                  {adjustmentSettings.scenario === 'canteen' && '1.1x（+10% 油盐脂肪）'}
+                </p>
+              </div>
+            </div>
+
+            {/* 口味调整 */}
+            <div>
+              <div className="flex items-center space-x-2 mb-4">
+                <Coffee size={20} className="text-pink-600" />
+                <h3 className="text-lg font-bold text-gray-800">口味偏好</h3>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { value: 'light' as const, label: '清淡', icon: '🌿', desc: '少油少盐' },
+                  { value: 'normal' as const, label: '适中', icon: '⚖️', desc: '标准口味' },
+                  { value: 'heavy' as const, label: '重口味', icon: '🔥', desc: '偏咸偏油' }
+                ].map((taste) => (
+                  <button
+                    key={taste.value}
+                    onClick={() => setAdjustmentSettings({ ...adjustmentSettings, taste: taste.value })}
+                    className={`p-4 rounded-2xl border-2 transition-all transform hover:scale-105 ${
+                      adjustmentSettings.taste === taste.value
+                        ? 'border-pink-500 bg-pink-50 shadow-lg'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-3xl mb-2">{taste.icon}</div>
+                    <div className="font-semibold text-gray-800 text-sm mb-1">{taste.label}</div>
+                    <div className="text-xs text-gray-500">{taste.desc}</div>
+                    {adjustmentSettings.taste === taste.value && (
+                      <div className="mt-2">
+                        <Check size={16} className="text-pink-600 mx-auto" />
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 p-3 bg-pink-50 rounded-xl border border-pink-100">
+                <p className="text-xs text-pink-700">
+                  <strong>系数：</strong>
+                  {adjustmentSettings.taste === 'light' && '0.7x（-30% 油盐糖）'}
+                  {adjustmentSettings.taste === 'normal' && '1.0x（标准）'}
+                  {adjustmentSettings.taste === 'heavy' && '1.4x（+40% 油盐糖）'}
+                </p>
+              </div>
+            </div>
+
+            {/* 份量估算 */}
+            <div>
+              <div className="flex items-center space-x-2 mb-4">
+                <Utensils size={20} className="text-rose-600" />
+                <h3 className="text-lg font-bold text-gray-800">份量大小</h3>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { value: 'small' as const, label: '小份', icon: '🤏', desc: '约1拳大小' },
+                  { value: 'medium' as const, label: '中份', icon: '👌', desc: '约2拳大小' },
+                  { value: 'large' as const, label: '大份', icon: '🙌', desc: '约3拳或更多' }
+                ].map((portion) => (
+                  <button
+                    key={portion.value}
+                    onClick={() => setAdjustmentSettings({ ...adjustmentSettings, portion: portion.value })}
+                    className={`p-4 rounded-2xl border-2 transition-all transform hover:scale-105 ${
+                      adjustmentSettings.portion === portion.value
+                        ? 'border-rose-500 bg-rose-50 shadow-lg'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-3xl mb-2">{portion.icon}</div>
+                    <div className="font-semibold text-gray-800 text-sm mb-1">{portion.label}</div>
+                    <div className="text-xs text-gray-500">{portion.desc}</div>
+                    {adjustmentSettings.portion === portion.value && (
+                      <div className="mt-2">
+                        <Check size={16} className="text-rose-600 mx-auto" />
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 p-3 bg-rose-50 rounded-xl border border-rose-100">
+                <p className="text-xs text-rose-700">
+                  <strong>系数：</strong>
+                  {adjustmentSettings.portion === 'small' && '0.7x（-30% 所有营养素）'}
+                  {adjustmentSettings.portion === 'medium' && '1.0x（标准）'}
+                  {adjustmentSettings.portion === 'large' && '1.5x（+50% 所有营养素）'}
+                </p>
+              </div>
+            </div>
+
+            {/* 营养数据对比 */}
+            <div>
+              <div className="flex items-center space-x-2 mb-4">
+                <BarChart3 size={20} className="text-blue-600" />
+                <h3 className="text-lg font-bold text-gray-800">实时营养预览</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {renderNutrientComparison('热量', '🔥', '千卡', originalNutrition.calories, adjustedNutrition.calories, 'from-orange-100 to-orange-200')}
+                {renderNutrientComparison('蛋白质', '💪', 'g', originalNutrition.protein, adjustedNutrition.protein, 'from-blue-100 to-blue-200')}
+                {renderNutrientComparison('碳水', '🌾', 'g', originalNutrition.carbs, adjustedNutrition.carbs, 'from-yellow-100 to-yellow-200')}
+                {renderNutrientComparison('脂肪', '🥑', 'g', originalNutrition.fat, adjustedNutrition.fat, 'from-green-100 to-green-200')}
+                {renderNutrientComparison('膳食纤维', '🥬', 'g', originalNutrition.fiber, adjustedNutrition.fiber, 'from-emerald-100 to-emerald-200')}
+                {renderNutrientComparison('钠', '🧂', 'mg', originalNutrition.sodium, adjustedNutrition.sodium, 'from-red-100 to-red-200')}
+              </div>
+            </div>
+
+            {/* 智能建议 */}
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-100">
+              <div className="flex items-start space-x-3">
+                <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Sparkles size={20} className="text-white" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-blue-900 mb-2">💡 智能建议</h4>
+                  <div className="text-sm text-blue-800 space-y-1">
+                    {adjustedNutrition.sodium > 800 && <p>• 钠含量偏高，建议搭配清淡蔬菜或多喝水</p>}
+                    {adjustedNutrition.protein < 20 && <p>• 蛋白质略显不足，建议增加蛋类或豆制品</p>}
+                    {adjustedNutrition.fiber < 5 && <p>• 膳食纤维较少，建议增加蔬菜水果摄入</p>}
+                    {adjustedNutrition.calories > 700 && <p>• 热量较高，注意控制其他餐次的摄入</p>}
+                    {adjustedNutrition.protein >= 20 && adjustedNutrition.fiber >= 5 && adjustedNutrition.sodium < 800 && (
+                      <p>• ✨ 营养搭配均衡，继续保持！</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 底部操作按钮 */}
+          <div className="p-6 bg-gray-50 border-t border-gray-100 flex space-x-4">
+            <button
+              onClick={() => {
+                // 重置为默认设置
+                setAdjustmentSettings({
+                  scenario: 'home',
+                  taste: 'normal',
+                  portion: 'medium'
+                });
+              }}
+              className="flex-1 py-3 px-4 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+            >
+              重置
+            </button>
+            <button
+              onClick={() => {
+                // 应用调整并继续
+                setAdjustedNutritionData(adjustedNutrition);
+                setShowSmartAdjustment(false);
+                setShowNutritionReport(true);
+              }}
+              className="flex-1 py-3 px-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+            >
+              应用调整 ✨
+            </button>
           </div>
         </div>
       </div>
@@ -7389,6 +7813,7 @@ const App: React.FC = () => {
       {showCamera && <CameraView />}
       {showAIAnalysis && <AIAnalysisModal />}
       {showMealSelection && <MealSelectionModal />}
+      {showSmartAdjustment && <SmartAdjustmentModal />}
       {showNutritionReport && <NutritionReportModal />}
       {aiChatOpen && <AIChat />}
       {selectedKOLPost && <KOLPostModal post={selectedKOLPost} />}
