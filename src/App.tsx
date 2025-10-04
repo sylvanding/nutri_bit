@@ -16,6 +16,11 @@ import { useAuthStore } from './stores/authStore';
 import { LoginPage } from './components/auth/LoginPage';
 import { RegisterPage } from './components/auth/RegisterPage';
 
+// 社交功能导入
+import { SocialFeed } from './components/social/SocialFeed';
+import { DirectMessage } from './components/social/DirectMessage';
+import { UserProfile } from './components/social/UserProfile';
+
 interface NutritionData {
   calories: number;
   protein: number;
@@ -324,6 +329,11 @@ const App: React.FC = () => {
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [showNutritionReport, setShowNutritionReport] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
+  
+  // 社交功能相关状态
+  const [showDirectMessage, setShowDirectMessage] = useState(false);
+  const [showUserProfile, setShowUserProfile] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   
   // 营养师咨询相关状态
   const [selectedNutritionist, setSelectedNutritionist] = useState<Nutritionist | null>(null);
@@ -8079,77 +8089,8 @@ const App: React.FC = () => {
     );
   };
 
-  const CommunityView = () => (
-    <div className="pb-24 p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">健康社区</h1>
-        <div className="bg-green-100 px-3 py-1 rounded-full">
-          <span className="text-green-700 text-sm font-medium">一键跟吃</span>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        {kolPosts.map((post) => (
-          <div key={post.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="p-4">
-              <div className="flex items-center mb-3">
-                <img src={post.avatar} alt={post.name} className="w-10 h-10 rounded-full mr-3" />
-                <div className="flex-1">
-                  <div className="font-semibold">{post.name}</div>
-                  <div className="text-sm text-gray-500">{post.time}</div>
-                </div>
-                <button className="text-green-600 text-sm font-medium">+ 关注</button>
-              </div>
-              
-              <h3 className="font-semibold mb-2">{post.title}</h3>
-              <img src={post.image} alt={post.title} className="w-full h-48 object-cover rounded-lg mb-3" />
-              
-              <div className="flex justify-between items-center text-sm text-gray-600 mb-3">
-                <div className="flex space-x-4">
-                  <span>{post.nutrition.calories}千卡</span>
-                  <span>{post.nutrition.protein}g蛋白质</span>
-                  <span>{post.nutrition.fiber}g膳食纤维</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4 text-gray-500">
-                  <button className="flex items-center space-x-1">
-                    <Heart className="w-4 h-4" />
-                    <span className="text-sm">{post.likes}</span>
-                  </button>
-                  <button className="flex items-center space-x-1">
-                    <MessageCircle className="w-4 h-4" />
-                    <span className="text-sm">评论</span>
-                  </button>
-                </div>
-                
-                {post.isFollowable && (
-                  <button 
-                    onClick={() => setSelectedKOLPost(post)}
-                    className="bg-green-500 text-white px-4 py-2 rounded-lg font-semibold text-sm flex items-center space-x-1"
-                  >
-                    <span>一键跟吃</span>
-                    <span className="text-green-200">¥{post.price}</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-8 text-center">
-        <div className="bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-2xl">
-          <div className="text-lg font-semibold mb-2">成为健康达人</div>
-          <p className="text-gray-600 text-sm mb-4">分享您的健康饮食，影响更多人</p>
-          <button className="bg-green-500 text-white px-6 py-2 rounded-lg font-semibold">
-            立即分享
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  // 社交社区视图 - 使用新的社交功能组件
+  const CommunityView = () => <SocialFeed />;
 
   const GamificationView = () => (
     <div className="pb-24">
@@ -10118,6 +10059,39 @@ const App: React.FC = () => {
       {showPurchaseModal && selectedDietPlan && <PurchaseModal plan={selectedDietPlan} />}
       {showFoodCorrectionModal && <FoodCorrectionModal />}
       {showWaterDetail && <WaterDetailView />}
+      
+      {/* 社交功能模态框 */}
+      {showDirectMessage && (
+        <div className="fixed inset-0 z-50 bg-white">
+          <DirectMessage />
+          <button
+            onClick={() => setShowDirectMessage(false)}
+            className="fixed top-4 right-4 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors z-50"
+          >
+            <X size={24} className="text-gray-600" />
+          </button>
+        </div>
+      )}
+      {showUserProfile && selectedUserId && (
+        <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
+          <UserProfile 
+            userId={selectedUserId}
+            onClose={() => {
+              setShowUserProfile(false);
+              setSelectedUserId(null);
+            }}
+          />
+          <button
+            onClick={() => {
+              setShowUserProfile(false);
+              setSelectedUserId(null);
+            }}
+            className="fixed top-4 right-4 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors z-50"
+          >
+            <X size={24} className="text-gray-600" />
+          </button>
+        </div>
+      )}
       {showNutritionistDetail && selectedNutritionist && (
         <NutritionistDetailModal 
           nutritionist={selectedNutritionist} 
