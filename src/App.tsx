@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Home, BookOpen, Users, User, MessageCircle, TrendingUp, Target, Award, ShoppingCart, Heart, Star, Clock, Zap, Check, BarChart3, Plus, Utensils, Coffee, Sandwich, Apple, Droplets, Filter, Search, Tag, Sparkles, Crown, Brain, Eye, Cpu, Wand2, Stethoscope, Video, Phone, MessageSquare, CheckCircle, XCircle, Badge, GraduationCap, MapPin, ArrowLeft, ChevronUp } from 'lucide-react';
+import { Camera, Home, BookOpen, Users, User, MessageCircle, TrendingUp, Target, Award, ShoppingCart, Heart, Star, Clock, Zap, Check, BarChart3, Plus, Utensils, Coffee, Sandwich, Apple, Droplets, Filter, Search, Tag, Sparkles, Crown, Brain, Eye, Cpu, Wand2, Stethoscope, Video, Phone, MessageSquare, CheckCircle, XCircle, Badge, GraduationCap, MapPin, ArrowLeft, ChevronUp, Bell, Settings, Database, Save, Trash2, Download, Upload, Moon, Sun, Globe, Smartphone, Mail, Lock, Shield } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import UltraSimpleGamificationPanel from './components/gamification/UltraSimpleGamificationPanel';
 import { useUltraSimpleGamificationStore } from './stores/ultraSimpleGamificationStore';
@@ -400,6 +400,50 @@ const App: React.FC = () => {
     interval: 120, // 每2小时
     startTime: '08:00',
     endTime: '22:00'
+  });
+  
+  // 系统设置相关状态
+  const [showPersonalSettings, setShowPersonalSettings] = useState(false);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
+  const [showPreferenceSettings, setShowPreferenceSettings] = useState(false);
+  const [showDataManagement, setShowDataManagement] = useState(false);
+  
+  // 个人信息设置
+  const [userProfile, setUserProfile] = useState({
+    nickname: '健康达人',
+    avatar: '',
+    gender: 'male' as string,
+    birthday: '1990-01-01',
+    bio: '热爱健康生活',
+    phone: '',
+    email: ''
+  });
+  
+  // 通知设置
+  const [notificationSettings, setNotificationSettings] = useState({
+    mealReminder: true,
+    breakfast: '08:00',
+    lunch: '12:00',
+    dinner: '18:00',
+    waterReminder: true,
+    waterInterval: 120,
+    dailyReport: true,
+    reportTime: '21:00',
+    socialNotification: true,
+    activityNotification: true
+  });
+  
+  // 偏好设置
+  const [preferenceSettings, setPreferenceSettings] = useState({
+    dietType: 'normal' as 'normal' | 'vegetarian' | 'vegan' | 'keto',
+    allergies: [] as string[],
+    dislikedFoods: [] as string[],
+    taste: 'normal' as 'light' | 'normal' | 'heavy',
+    language: 'zh-CN',
+    unit: 'metric' as 'metric' | 'imperial',
+    theme: 'auto' as 'light' | 'dark' | 'auto',
+    autoSync: true,
+    syncOnMobileData: false
   });
   
   // 菜品数据库
@@ -8796,27 +8840,101 @@ const App: React.FC = () => {
             </div>
             <span className="text-gray-400">→</span>
           </button>
-
-          <button 
-            onClick={() => {
-              if (confirm('确定要退出登录吗？')) {
-                useAuthStore.getState().logout();
-              }
-            }}
-            className="w-full p-4 flex items-center justify-between hover:bg-red-50 transition-colors"
-          >
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-gradient-to-br from-gray-400 to-gray-500 rounded-lg flex items-center justify-center mr-3">
-                <ArrowLeft className="w-5 h-5 text-white" />
-              </div>
-              <div className="text-left">
-                <div className="font-semibold text-gray-800">退出登录</div>
-                <div className="text-xs text-gray-500">退出当前账号</div>
-              </div>
-            </div>
-            <span className="text-gray-400">→</span>
-          </button>
         </div>
+      </div>
+
+      {/* 系统设置区域 */}
+      <div className="bg-white rounded-xl shadow-sm mb-6">
+        <div className="p-4 border-b border-gray-100">
+          <h3 className="font-semibold text-gray-800">系统设置</h3>
+        </div>
+        
+        <button 
+          onClick={() => setShowPersonalSettings(true)}
+          className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100"
+        >
+          <div className="flex items-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-blue-500 rounded-lg flex items-center justify-center mr-3">
+              <User className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-left">
+              <div className="font-semibold text-gray-800">个人信息设置</div>
+              <div className="text-xs text-gray-500">修改头像、昵称、账号安全</div>
+            </div>
+          </div>
+          <span className="text-gray-400">→</span>
+        </button>
+
+        <button 
+          onClick={() => setShowNotificationSettings(true)}
+          className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100"
+        >
+          <div className="flex items-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-lg flex items-center justify-center mr-3">
+              <Bell className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-left">
+              <div className="font-semibold text-gray-800">通知设置</div>
+              <div className="text-xs text-gray-500">餐时提醒、饮水提醒、报告推送</div>
+            </div>
+          </div>
+          <span className="text-gray-400">→</span>
+        </button>
+
+        <button 
+          onClick={() => setShowPreferenceSettings(true)}
+          className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100"
+        >
+          <div className="flex items-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-rose-500 rounded-lg flex items-center justify-center mr-3">
+              <Settings className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-left">
+              <div className="font-semibold text-gray-800">偏好设置</div>
+              <div className="text-xs text-gray-500">饮食偏好、系统偏好、主题</div>
+            </div>
+          </div>
+          <span className="text-gray-400">→</span>
+        </button>
+
+        <button 
+          onClick={() => setShowDataManagement(true)}
+          className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-teal-500 rounded-lg flex items-center justify-center mr-3">
+              <Database className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-left">
+              <div className="font-semibold text-gray-800">数据管理</div>
+              <div className="text-xs text-gray-500">导出、备份、清除数据</div>
+            </div>
+          </div>
+          <span className="text-gray-400">→</span>
+        </button>
+      </div>
+
+      {/* 退出登录 */}
+      <div className="bg-white rounded-xl shadow-sm mb-6">
+        <button 
+          onClick={() => {
+            if (confirm('确定要退出登录吗？')) {
+              useAuthStore.getState().logout();
+            }
+          }}
+          className="w-full p-4 flex items-center justify-between hover:bg-red-50 transition-colors"
+        >
+          <div className="flex items-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-gray-400 to-gray-500 rounded-lg flex items-center justify-center mr-3">
+              <ArrowLeft className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-left">
+              <div className="font-semibold text-gray-800">退出登录</div>
+              <div className="text-xs text-gray-500">退出当前账号</div>
+            </div>
+          </div>
+          <span className="text-gray-400">→</span>
+        </button>
       </div>
 
       {/* 用户信息显示 */}
@@ -9999,6 +10117,683 @@ const App: React.FC = () => {
     );
   };
 
+  // 个人信息设置界面
+  const PersonalSettingsView = () => (
+    <div className="fixed inset-0 bg-gray-50 z-50 overflow-y-auto">
+      {/* 头部 */}
+      <div className="sticky top-0 bg-white shadow-sm z-10">
+        <div className="flex items-center justify-between p-4">
+          <button onClick={() => setShowPersonalSettings(false)} className="p-2">
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <h1 className="text-lg font-bold">个人信息设置</h1>
+          <button 
+            onClick={() => {
+              alert('保存成功！');
+              setShowPersonalSettings(false);
+            }}
+            className="text-green-600 font-medium"
+          >
+            保存
+          </button>
+        </div>
+      </div>
+
+      <div className="p-6 pb-24 space-y-6">
+        {/* 头像设置 */}
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <h3 className="font-semibold text-gray-800 mb-4">基础信息</h3>
+          
+          <div className="flex items-center justify-between mb-6">
+            <div className="text-sm text-gray-700">头像</div>
+            <div className="flex items-center gap-3">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center text-white text-xl font-bold">
+                {userProfile.nickname.charAt(0)}
+              </div>
+              <button className="text-green-600 text-sm">修改</button>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm text-gray-700 mb-2">昵称</label>
+              <input
+                type="text"
+                value={userProfile.nickname}
+                onChange={(e) => setUserProfile({...userProfile, nickname: e.target.value})}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-700 mb-2">性别</label>
+              <div className="flex gap-3">
+                {['male', 'female', 'other'].map(g => (
+                  <button
+                    key={g}
+                    onClick={() => setUserProfile({...userProfile, gender: g})}
+                    className={`flex-1 py-3 rounded-xl border-2 transition-all ${
+                      userProfile.gender === g
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {g === 'male' ? '男' : g === 'female' ? '女' : '其他'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-700 mb-2">生日</label>
+              <input
+                type="date"
+                value={userProfile.birthday}
+                onChange={(e) => setUserProfile({...userProfile, birthday: e.target.value})}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-700 mb-2">个人简介</label>
+              <textarea
+                value={userProfile.bio}
+                onChange={(e) => setUserProfile({...userProfile, bio: e.target.value})}
+                rows={3}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* 账号安全 */}
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <h3 className="font-semibold text-gray-800 mb-4">账号安全</h3>
+          
+          <div className="space-y-3">
+            <button className="w-full flex items-center justify-between p-4 hover:bg-gray-50 rounded-xl transition-colors">
+              <div className="flex items-center">
+                <Mail className="w-5 h-5 text-gray-400 mr-3" />
+                <div className="text-left">
+                  <div className="text-sm font-medium text-gray-800">邮箱</div>
+                  <div className="text-xs text-gray-500">{userProfile.email || '未绑定'}</div>
+                </div>
+              </div>
+              <span className="text-gray-400">→</span>
+            </button>
+
+            <button className="w-full flex items-center justify-between p-4 hover:bg-gray-50 rounded-xl transition-colors">
+              <div className="flex items-center">
+                <Smartphone className="w-5 h-5 text-gray-400 mr-3" />
+                <div className="text-left">
+                  <div className="text-sm font-medium text-gray-800">手机号</div>
+                  <div className="text-xs text-gray-500">{userProfile.phone || '未绑定'}</div>
+                </div>
+              </div>
+              <span className="text-gray-400">→</span>
+            </button>
+
+            <button className="w-full flex items-center justify-between p-4 hover:bg-gray-50 rounded-xl transition-colors">
+              <div className="flex items-center">
+                <Lock className="w-5 h-5 text-gray-400 mr-3" />
+                <div className="text-left">
+                  <div className="text-sm font-medium text-gray-800">修改密码</div>
+                  <div className="text-xs text-gray-500">定期更换密码保护账号安全</div>
+                </div>
+              </div>
+              <span className="text-gray-400">→</span>
+            </button>
+
+            <button className="w-full flex items-center justify-between p-4 hover:bg-gray-50 rounded-xl transition-colors">
+              <div className="flex items-center">
+                <Shield className="w-5 h-5 text-gray-400 mr-3" />
+                <div className="text-left">
+                  <div className="text-sm font-medium text-gray-800">设备管理</div>
+                  <div className="text-xs text-gray-500">管理登录设备</div>
+                </div>
+              </div>
+              <span className="text-gray-400">→</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 隐私设置 */}
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <h3 className="font-semibold text-gray-800 mb-4">隐私设置</h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-700">个人信息对所有人可见</div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" className="sr-only peer" defaultChecked />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // 通知设置界面
+  const NotificationSettingsView = () => (
+    <div className="fixed inset-0 bg-gray-50 z-50 overflow-y-auto">
+      <div className="sticky top-0 bg-white shadow-sm z-10">
+        <div className="flex items-center justify-between p-4">
+          <button onClick={() => setShowNotificationSettings(false)} className="p-2">
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <h1 className="text-lg font-bold">通知设置</h1>
+          <button 
+            onClick={() => {
+              alert('保存成功！');
+              setShowNotificationSettings(false);
+            }}
+            className="text-green-600 font-medium"
+          >
+            保存
+          </button>
+        </div>
+      </div>
+
+      <div className="p-6 pb-24 space-y-6">
+        {/* 餐时提醒 */}
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-800">餐时提醒</h3>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                className="sr-only peer" 
+                checked={notificationSettings.mealReminder}
+                onChange={(e) => setNotificationSettings({...notificationSettings, mealReminder: e.target.checked})}
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+            </label>
+          </div>
+          
+          {notificationSettings.mealReminder && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-700">早餐提醒</div>
+                <input
+                  type="time"
+                  value={notificationSettings.breakfast}
+                  onChange={(e) => setNotificationSettings({...notificationSettings, breakfast: e.target.value})}
+                  className="px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-700">午餐提醒</div>
+                <input
+                  type="time"
+                  value={notificationSettings.lunch}
+                  onChange={(e) => setNotificationSettings({...notificationSettings, lunch: e.target.value})}
+                  className="px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-700">晚餐提醒</div>
+                <input
+                  type="time"
+                  value={notificationSettings.dinner}
+                  onChange={(e) => setNotificationSettings({...notificationSettings, dinner: e.target.value})}
+                  className="px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 饮水提醒 */}
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-800">饮水提醒</h3>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                className="sr-only peer" 
+                checked={notificationSettings.waterReminder}
+                onChange={(e) => setNotificationSettings({...notificationSettings, waterReminder: e.target.checked})}
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+            </label>
+          </div>
+          
+          {notificationSettings.waterReminder && (
+            <div>
+              <label className="block text-sm text-gray-700 mb-2">提醒间隔（分钟）</label>
+              <select
+                value={notificationSettings.waterInterval}
+                onChange={(e) => setNotificationSettings({...notificationSettings, waterInterval: Number(e.target.value)})}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+              >
+                <option value={60}>60分钟</option>
+                <option value={90}>90分钟</option>
+                <option value={120}>120分钟</option>
+                <option value={180}>180分钟</option>
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* 营养报告 */}
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-800">每日营养报告</h3>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                className="sr-only peer" 
+                checked={notificationSettings.dailyReport}
+                onChange={(e) => setNotificationSettings({...notificationSettings, dailyReport: e.target.checked})}
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+            </label>
+          </div>
+          
+          {notificationSettings.dailyReport && (
+            <div>
+              <label className="block text-sm text-gray-700 mb-2">推送时间</label>
+              <input
+                type="time"
+                value={notificationSettings.reportTime}
+                onChange={(e) => setNotificationSettings({...notificationSettings, reportTime: e.target.value})}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* 社区通知 */}
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-gray-800">社区通知</h3>
+              <p className="text-xs text-gray-500 mt-1">点赞、评论、关注通知</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                className="sr-only peer" 
+                checked={notificationSettings.socialNotification}
+                onChange={(e) => setNotificationSettings({...notificationSettings, socialNotification: e.target.checked})}
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+        </div>
+
+        {/* 活动通知 */}
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-gray-800">活动通知</h3>
+              <p className="text-xs text-gray-500 mt-1">挑战活动、优惠活动通知</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                className="sr-only peer" 
+                checked={notificationSettings.activityNotification}
+                onChange={(e) => setNotificationSettings({...notificationSettings, activityNotification: e.target.checked})}
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // 偏好设置界面
+  const PreferenceSettingsView = () => {
+    const allergiesOptions = ['花生', '海鲜', '乳制品', '蛋类', '大豆', '麸质', '坚果'];
+    const dislikedFoodsOptions = ['香菜', '芹菜', '胡萝卜', '茄子', '苦瓜', '青椒', '洋葱'];
+
+    return (
+      <div className="fixed inset-0 bg-gray-50 z-50 overflow-y-auto">
+        <div className="sticky top-0 bg-white shadow-sm z-10">
+          <div className="flex items-center justify-between p-4">
+            <button onClick={() => setShowPreferenceSettings(false)} className="p-2">
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <h1 className="text-lg font-bold">偏好设置</h1>
+            <button 
+              onClick={() => {
+                alert('保存成功！');
+                setShowPreferenceSettings(false);
+              }}
+              className="text-green-600 font-medium"
+            >
+              保存
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 pb-24 space-y-6">
+          {/* 饮食偏好 */}
+          <div className="bg-white rounded-xl p-6 shadow-sm">
+            <h3 className="font-semibold text-gray-800 mb-4">饮食偏好</h3>
+            
+            <div className="mb-4">
+              <label className="block text-sm text-gray-700 mb-2">饮食类型</label>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: 'normal', label: '普通' },
+                  { value: 'vegetarian', label: '素食' },
+                  { value: 'vegan', label: '纯素' },
+                  { value: 'keto', label: '生酮' }
+                ].map(type => (
+                  <button
+                    key={type.value}
+                    onClick={() => setPreferenceSettings({...preferenceSettings, dietType: type.value as any})}
+                    className={`py-3 rounded-xl border-2 transition-all ${
+                      preferenceSettings.dietType === type.value
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {type.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm text-gray-700 mb-2">过敏食物</label>
+              <div className="flex flex-wrap gap-2">
+                {allergiesOptions.map(allergy => (
+                  <button
+                    key={allergy}
+                    onClick={() => {
+                      const newAllergies = preferenceSettings.allergies.includes(allergy)
+                        ? preferenceSettings.allergies.filter(a => a !== allergy)
+                        : [...preferenceSettings.allergies, allergy];
+                      setPreferenceSettings({...preferenceSettings, allergies: newAllergies});
+                    }}
+                    className={`px-4 py-2 rounded-full text-sm transition-all ${
+                      preferenceSettings.allergies.includes(allergy)
+                        ? 'bg-red-100 text-red-700 border-2 border-red-500'
+                        : 'bg-gray-100 text-gray-700 border-2 border-gray-200'
+                    }`}
+                  >
+                    {allergy}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm text-gray-700 mb-2">不喜欢的食物</label>
+              <div className="flex flex-wrap gap-2">
+                {dislikedFoodsOptions.map(food => (
+                  <button
+                    key={food}
+                    onClick={() => {
+                      const newDislikes = preferenceSettings.dislikedFoods.includes(food)
+                        ? preferenceSettings.dislikedFoods.filter(f => f !== food)
+                        : [...preferenceSettings.dislikedFoods, food];
+                      setPreferenceSettings({...preferenceSettings, dislikedFoods: newDislikes});
+                    }}
+                    className={`px-4 py-2 rounded-full text-sm transition-all ${
+                      preferenceSettings.dislikedFoods.includes(food)
+                        ? 'bg-orange-100 text-orange-700 border-2 border-orange-500'
+                        : 'bg-gray-100 text-gray-700 border-2 border-gray-200'
+                    }`}
+                  >
+                    {food}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-700 mb-2">口味偏好</label>
+              <div className="flex gap-3">
+                {[
+                  { value: 'light', label: '清淡' },
+                  { value: 'normal', label: '适中' },
+                  { value: 'heavy', label: '重口味' }
+                ].map(taste => (
+                  <button
+                    key={taste.value}
+                    onClick={() => setPreferenceSettings({...preferenceSettings, taste: taste.value as any})}
+                    className={`flex-1 py-3 rounded-xl border-2 transition-all ${
+                      preferenceSettings.taste === taste.value
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {taste.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 系统偏好 */}
+          <div className="bg-white rounded-xl p-6 shadow-sm">
+            <h3 className="font-semibold text-gray-800 mb-4">系统偏好</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-700 mb-2">语言</label>
+                <select
+                  value={preferenceSettings.language}
+                  onChange={(e) => setPreferenceSettings({...preferenceSettings, language: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                >
+                  <option value="zh-CN">中文</option>
+                  <option value="en-US">English</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-700 mb-2">单位制</label>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setPreferenceSettings({...preferenceSettings, unit: 'metric'})}
+                    className={`flex-1 py-3 rounded-xl border-2 transition-all ${
+                      preferenceSettings.unit === 'metric'
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-gray-200 text-gray-700'
+                    }`}
+                  >
+                    公制
+                  </button>
+                  <button
+                    onClick={() => setPreferenceSettings({...preferenceSettings, unit: 'imperial'})}
+                    className={`flex-1 py-3 rounded-xl border-2 transition-all ${
+                      preferenceSettings.unit === 'imperial'
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-gray-200 text-gray-700'
+                    }`}
+                  >
+                    英制
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-700 mb-2">主题</label>
+                <div className="flex gap-3">
+                  {[
+                    { value: 'light', label: '浅色', icon: Sun },
+                    { value: 'dark', label: '深色', icon: Moon },
+                    { value: 'auto', label: '自动', icon: Globe }
+                  ].map(theme => {
+                    const IconComponent = theme.icon;
+                    return (
+                      <button
+                        key={theme.value}
+                        onClick={() => setPreferenceSettings({...preferenceSettings, theme: theme.value as any})}
+                        className={`flex-1 py-3 rounded-xl border-2 transition-all flex items-center justify-center gap-2 ${
+                          preferenceSettings.theme === theme.value
+                            ? 'border-green-500 bg-green-50 text-green-700'
+                            : 'border-gray-200 text-gray-700'
+                        }`}
+                      >
+                        <IconComponent className="w-4 h-4" />
+                        {theme.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <div>
+                  <div className="text-sm font-medium text-gray-800">WiFi自动同步</div>
+                  <div className="text-xs text-gray-500">在WiFi环境下自动同步数据</div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    checked={preferenceSettings.autoSync}
+                    onChange={(e) => setPreferenceSettings({...preferenceSettings, autoSync: e.target.checked})}
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <div>
+                  <div className="text-sm font-medium text-gray-800">移动网络同步</div>
+                  <div className="text-xs text-gray-500">使用移动数据同步（可能产生流量费用）</div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    checked={preferenceSettings.syncOnMobileData}
+                    onChange={(e) => setPreferenceSettings({...preferenceSettings, syncOnMobileData: e.target.checked})}
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // 数据管理界面
+  const DataManagementView = () => (
+    <div className="fixed inset-0 bg-gray-50 z-50 overflow-y-auto">
+      <div className="sticky top-0 bg-white shadow-sm z-10">
+        <div className="flex items-center justify-between p-4">
+          <button onClick={() => setShowDataManagement(false)} className="p-2">
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <h1 className="text-lg font-bold">数据管理</h1>
+          <div className="w-16"></div>
+        </div>
+      </div>
+
+      <div className="p-6 pb-24 space-y-6">
+        {/* 数据导出 */}
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <h3 className="font-semibold text-gray-800 mb-4">数据导出</h3>
+          <p className="text-sm text-gray-600 mb-4">导出您的营养记录、体重记录和报告</p>
+          
+          <div className="space-y-3">
+            <button 
+              onClick={() => alert('正在导出Excel文件...')}
+              className="w-full flex items-center justify-between p-4 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all"
+            >
+              <div className="flex items-center">
+                <Download className="w-5 h-5 text-green-600 mr-3" />
+                <div className="text-left">
+                  <div className="text-sm font-medium text-gray-800">导出为Excel</div>
+                  <div className="text-xs text-gray-500">包含所有营养和体重数据</div>
+                </div>
+              </div>
+              <span className="text-gray-400">→</span>
+            </button>
+
+            <button 
+              onClick={() => alert('正在导出PDF文件...')}
+              className="w-full flex items-center justify-between p-4 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all"
+            >
+              <div className="flex items-center">
+                <Download className="w-5 h-5 text-green-600 mr-3" />
+                <div className="text-left">
+                  <div className="text-sm font-medium text-gray-800">导出为PDF</div>
+                  <div className="text-xs text-gray-500">生成可打印的报告</div>
+                </div>
+              </div>
+              <span className="text-gray-400">→</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 数据备份 */}
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <h3 className="font-semibold text-gray-800 mb-4">数据备份</h3>
+          <p className="text-sm text-gray-600 mb-4">将数据备份到云端，防止数据丢失</p>
+          
+          <div className="space-y-3">
+            <button 
+              onClick={() => alert('正在备份到云端...')}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl font-medium hover:from-blue-600 hover:to-cyan-600 transition-all"
+            >
+              <Upload className="w-5 h-5" />
+              立即备份到云端
+            </button>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <div className="flex items-start gap-2">
+                <Save className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                  <div className="text-sm font-medium text-blue-800">上次备份</div>
+                  <div className="text-xs text-blue-600 mt-1">2024-01-15 14:30</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 数据清除 */}
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <h3 className="font-semibold text-gray-800 mb-4">数据清除</h3>
+          <p className="text-sm text-gray-600 mb-4">清除指定时间段的记录</p>
+          
+          <button 
+            onClick={() => {
+              if (confirm('确定要清除所有缓存数据吗？此操作不会删除云端备份。')) {
+                alert('缓存已清除');
+              }
+            }}
+            className="w-full flex items-center justify-center gap-2 py-3 border-2 border-orange-500 text-orange-600 rounded-xl font-medium hover:bg-orange-50 transition-all"
+          >
+            <Trash2 className="w-5 h-5" />
+            清除缓存数据
+          </button>
+        </div>
+
+        {/* 账号注销 */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border-2 border-red-200">
+          <h3 className="font-semibold text-red-600 mb-2">危险区域</h3>
+          <p className="text-sm text-gray-600 mb-4">注销账号将永久删除所有数据，此操作不可恢复</p>
+          
+          <button 
+            onClick={() => {
+              if (confirm('确定要注销账号吗？所有数据将被永久删除，此操作不可恢复！')) {
+                alert('账号注销申请已提交，我们会在7个工作日内处理');
+              }
+            }}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-all"
+          >
+            <Trash2 className="w-5 h-5" />
+            申请注销账号
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   const tabs = [
     { id: 'home', name: '首页', icon: Home },
     { id: 'recipes', name: '菜谱', icon: BookOpen },
@@ -10059,6 +10854,12 @@ const App: React.FC = () => {
       {showPurchaseModal && selectedDietPlan && <PurchaseModal plan={selectedDietPlan} />}
       {showFoodCorrectionModal && <FoodCorrectionModal />}
       {showWaterDetail && <WaterDetailView />}
+      
+      {/* 系统设置界面 */}
+      {showPersonalSettings && <PersonalSettingsView />}
+      {showNotificationSettings && <NotificationSettingsView />}
+      {showPreferenceSettings && <PreferenceSettingsView />}
+      {showDataManagement && <DataManagementView />}
       
       {/* 社交功能模态框 */}
       {showDirectMessage && (
