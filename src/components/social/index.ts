@@ -6,4 +6,5 @@ export { PostCreateModal } from './PostCreateModal';
 export { PostDetail } from './PostDetail';
 export { UserProfile } from './UserProfile';
 export { DirectMessage } from './DirectMessage';
+export { FollowMealModal } from './FollowMealModal';
 

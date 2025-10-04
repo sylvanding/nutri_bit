@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, MapPin, Hash, TrendingUp } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, MapPin, Hash, TrendingUp, Utensils } from 'lucide-react';
 import { Post } from '../../types/social';
 import { useSocialStore } from '../../stores/socialStore';
 
@@ -9,7 +9,7 @@ interface PostCardProps {
 }
 
 export const PostCard: React.FC<PostCardProps> = ({ post, onClick }) => {
-  const { likePost, unlikePost, bookmarkPost, unbookmarkPost, sharePost, followUser, unfollowUser, openPostDetail } = useSocialStore();
+  const { likePost, unlikePost, bookmarkPost, unbookmarkPost, sharePost, followUser, unfollowUser, openPostDetail, openFollowMealModal } = useSocialStore();
   const [showFullContent, setShowFullContent] = useState(false);
 
   const postTypeConfig = {
@@ -212,6 +212,27 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onClick }) => {
               <div className="text-xs text-gray-600">脂肪</div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 一键跟吃按钮 */}
+      {post.followMealInfo && post.followMealInfo.canFollow && (
+        <div className="mx-4 mt-3">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              openFollowMealModal(post);
+            }}
+            className="w-full py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+          >
+            <Utensils size={20} />
+            <span>一键跟吃</span>
+            {post.followMealInfo.followCount > 0 && (
+              <span className="text-sm opacity-90">
+                （{post.followMealInfo.followCount}人已跟吃）
+              </span>
+            )}
+          </button>
         </div>
       )}
 

@@ -4,6 +4,7 @@ import { useSocialStore } from '../../stores/socialStore';
 import { PostCard } from './PostCard';
 import { PostCreateModal } from './PostCreateModal';
 import { PostDetail } from './PostDetail';
+import { FollowMealModal } from './FollowMealModal';
 import { FeedType, PostType } from '../../types/social';
 
 export const SocialFeed: React.FC = () => {
@@ -18,6 +19,10 @@ export const SocialFeed: React.FC = () => {
     closeCreatePostModal,
     isPostDetailOpen,
     closePostDetail,
+    isFollowMealModalOpen,
+    selectedFollowMealPost,
+    closeFollowMealModal,
+    createFollowMealOrder,
     topics
   } = useSocialStore();
 
@@ -299,6 +304,19 @@ export const SocialFeed: React.FC = () => {
 
       {/* 帖子详情模态框 */}
       {isPostDetailOpen && <PostDetail />}
+
+      {/* 一键跟吃模态框 */}
+      {isFollowMealModalOpen && selectedFollowMealPost && (
+        <FollowMealModal
+          isOpen={isFollowMealModalOpen}
+          post={selectedFollowMealPost}
+          onClose={closeFollowMealModal}
+          onConfirm={(orderData) => {
+            createFollowMealOrder(orderData);
+            alert('下单成功！营养数据将自动同步到您的记录中 🎉');
+          }}
+        />
+      )}
     </div>
   );
 };

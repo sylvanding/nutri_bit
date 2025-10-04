@@ -11,7 +11,11 @@ import {
   PostVisibility,
   FeedFilter,
   FeedType,
-  PostMedia
+  PostMedia,
+  FollowMealOrder,
+  DeliveryType,
+  PortionSize,
+  DeliveryTimeSlot
 } from '../types/social';
 
 interface SocialState {
@@ -23,6 +27,7 @@ interface SocialState {
   notifications: Notification[];
   currentUser: SocialUser | null;
   followingUsers: SocialUser[];
+  followMealOrders: FollowMealOrder[];
   
   // UI状态
   activeFeedType: FeedType;
@@ -30,6 +35,8 @@ interface SocialState {
   selectedPost: Post | null;
   isCreatePostModalOpen: boolean;
   isPostDetailOpen: boolean;
+  isFollowMealModalOpen: boolean;
+  selectedFollowMealPost: Post | null;
   
   // Actions - 帖子管理
   setPosts: (posts: Post[]) => void;
@@ -79,6 +86,12 @@ interface SocialState {
   openPostDetail: (post: Post) => void;
   closePostDetail: () => void;
   
+  // Actions - 一键跟吃
+  openFollowMealModal: (post: Post) => void;
+  closeFollowMealModal: () => void;
+  createFollowMealOrder: (order: Omit<FollowMealOrder, 'id' | 'userId' | 'status' | 'createdAt' | 'updatedAt'>) => void;
+  getFollowMealOrders: () => FollowMealOrder[];
+  
   // Actions - 获取过滤后的帖子
   getFilteredPosts: () => Post[];
 }
@@ -102,12 +115,15 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     membershipTier: 'pro',
   },
   followingUsers: [],
+  followMealOrders: [],
   
   activeFeedType: 'following',
   feedFilter: {},
   selectedPost: null,
   isCreatePostModalOpen: false,
   isPostDetailOpen: false,
+  isFollowMealModalOpen: false,
+  selectedFollowMealPost: null,
   
   // 帖子管理
   setPosts: (posts) => set({ posts }),
@@ -343,6 +359,69 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   
   closePostDetail: () => set({ selectedPost: null, isPostDetailOpen: false }),
   
+  // 一键跟吃功能
+  openFollowMealModal: (post) => set({ 
+    selectedFollowMealPost: post, 
+    isFollowMealModalOpen: true 
+  }),
+  
+  closeFollowMealModal: () => set({ 
+    selectedFollowMealPost: null, 
+    isFollowMealModalOpen: false 
+  }),
+  
+  createFollowMealOrder: (orderData) => {
+    const currentUser = get().currentUser;
+    if (!currentUser) return;
+
+    const order: FollowMealOrder = {
+      ...orderData,
+      id: `order-${Date.now()}`,
+      userId: currentUser.id,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    set((state) => ({
+      followMealOrders: [order, ...state.followMealOrders],
+      // 增加帖子的跟吃计数
+      posts: state.posts.map(post => 
+        post.id === orderData.postId && post.followMealInfo
+          ? {
+              ...post,
+              followMealInfo: {
+                ...post.followMealInfo,
+                followCount: post.followMealInfo.followCount + 1
+              }
+            }
+          : post
+      )
+    }));
+
+    // 模拟支付成功后的通知
+    setTimeout(() => {
+      set((state) => ({
+        followMealOrders: state.followMealOrders.map(o =>
+          o.id === order.id ? { ...o, status: 'paid' } : o
+        )
+      }));
+      
+      // 添加通知
+      const notification: Notification = {
+        id: `notif-${Date.now()}`,
+        type: 'system',
+        actor: currentUser,
+        content: '订单支付成功！您的美食正在准备中...',
+        isRead: false,
+        createdAt: new Date().toISOString()
+      };
+      get().addNotification(notification);
+    }, 1000);
+  },
+  
+  getFollowMealOrders: () => get().followMealOrders,
+  
   // 获取过滤后的帖子
   getFilteredPosts: () => {
     const { posts, activeFeedType, feedFilter, followingUsers } = get();
@@ -450,6 +529,41 @@ function generateMockPosts(): Post[] {
         sodium: 580,
         fiber: 8,
         mealType: 'lunch'
+      },
+      followMealInfo: {
+        canFollow: true,
+        followCount: 45,
+        difficulty: 'easy',
+        cookingTime: 15,
+        options: [
+          {
+            type: 'fresh-pack',
+            name: '净菜包',
+            description: '预处理食材 + 调料包 + 菜谱，享受烹饪乐趣',
+            icon: '🥬',
+            basePrice: 28.80,
+            preparationTime: '15分钟',
+            features: ['新鲜食材预处理', '调料包配齐', '详细烹饪步骤', '适合享受烹饪']
+          },
+          {
+            type: 'semi-prepared',
+            name: '半成品',
+            description: '部分预制，简单加热即可享用',
+            icon: '🍱',
+            basePrice: 35.80,
+            preparationTime: '5分钟',
+            features: ['部分预制好', '简单加工', '快速上桌', '省时便捷']
+          },
+          {
+            type: 'ready-to-eat',
+            name: '成品外卖',
+            description: '即食热食，直接享用美味',
+            icon: '🚚',
+            basePrice: 42.80,
+            preparationTime: '即食',
+            features: ['专业大厨制作', '即食热食', '无需烹饪', '送货上门']
+          }
+        ]
       },
       visibility: 'public',
       status: 'published',
@@ -569,6 +683,32 @@ function generateMockPosts(): Post[] {
         sodium: 420,
         fiber: 9,
         mealType: 'breakfast'
+      },
+      followMealInfo: {
+        canFollow: true,
+        followCount: 67,
+        difficulty: 'easy',
+        cookingTime: 10,
+        options: [
+          {
+            type: 'fresh-pack',
+            name: '净菜包',
+            description: '新鲜牛油果 + 全麦吐司 + 鸡蛋 + 橙子',
+            icon: '🥬',
+            basePrice: 22.80,
+            preparationTime: '10分钟',
+            features: ['新鲜食材', '营养早餐', '快手制作', '元气满满']
+          },
+          {
+            type: 'ready-to-eat',
+            name: '成品外卖',
+            description: '现做现送，保证新鲜美味',
+            icon: '🚚',
+            basePrice: 32.80,
+            preparationTime: '即食',
+            features: ['专业制作', '现做现送', '热乎美味', '无需烹饪']
+          }
+        ]
       },
       visibility: 'public',
       status: 'published',
@@ -697,6 +837,41 @@ function generateMockPosts(): Post[] {
         sodium: 720,
         fiber: 7,
         mealType: 'dinner'
+      },
+      followMealInfo: {
+        canFollow: true,
+        followCount: 156,
+        difficulty: 'medium',
+        cookingTime: 25,
+        options: [
+          {
+            type: 'fresh-pack',
+            name: '净菜包',
+            description: '优质牛排 + 红薯 + 芦笋 + 调料',
+            icon: '🥬',
+            basePrice: 58.80,
+            preparationTime: '25分钟',
+            features: ['优质牛排', '新鲜蔬菜', '健身专用', '高蛋白配比']
+          },
+          {
+            type: 'semi-prepared',
+            name: '半成品',
+            description: '牛排已腌制，蔬菜预处理',
+            icon: '🍱',
+            basePrice: 68.80,
+            preparationTime: '10分钟',
+            features: ['牛排已腌制', '蔬菜预处理', '简单烹饪', '省时美味']
+          },
+          {
+            type: 'ready-to-eat',
+            name: '成品外卖',
+            description: '专业大厨制作，五星级品质',
+            icon: '🚚',
+            basePrice: 78.80,
+            preparationTime: '即食',
+            features: ['专业制作', '五星品质', '即食美味', '营养均衡']
+          }
+        ]
       },
       visibility: 'public',
       status: 'published',

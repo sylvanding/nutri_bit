@@ -72,6 +72,9 @@ export interface Post {
   relatedRecipeId?: string;
   relatedRecipeName?: string;
   
+  // 一键跟吃信息
+  followMealInfo?: PostFollowMealInfo;
+  
   // 互动数据
   stats: {
     likes: number;
@@ -189,5 +192,59 @@ export interface FollowRelationship {
   followerId: string;
   followingId: string;
   createdAt: string;
+}
+
+// 一键跟吃相关类型
+// 配送选项类型
+export type DeliveryType = 'fresh-pack' | 'semi-prepared' | 'ready-to-eat';
+
+// 份量选项
+export type PortionSize = '1-person' | '2-person' | '4-person';
+
+// 配送时段
+export interface DeliveryTimeSlot {
+  id: string;
+  label: string;
+  startTime: string;
+  endTime: string;
+  available: boolean;
+}
+
+// 一键跟吃选项
+export interface FollowMealOption {
+  type: DeliveryType;
+  name: string;
+  description: string;
+  icon: string;
+  basePrice: number;
+  preparationTime?: string;
+  features: string[];
+}
+
+// 一键跟吃订单
+export interface FollowMealOrder {
+  id: string;
+  postId: string;
+  userId: string;
+  deliveryType: DeliveryType;
+  portionSize: PortionSize;
+  deliveryTimeSlot: DeliveryTimeSlot;
+  price: number;
+  status: 'pending' | 'paid' | 'preparing' | 'delivering' | 'delivered' | 'completed' | 'cancelled';
+  nutrition: NutritionData;
+  createdAt: string;
+  updatedAt: string;
+  deliveryAddress?: string;
+  specialInstructions?: string;
+}
+
+// 帖子的一键跟吃信息
+export interface PostFollowMealInfo {
+  canFollow: boolean;
+  followCount: number; // 已跟吃次数
+  options: FollowMealOption[];
+  difficulty?: 'easy' | 'medium' | 'hard'; // 制作难度
+  cookingTime?: number; // 烹饪时间（分钟）
+  recipeId?: string; // 关联菜谱ID
 }
 
