@@ -42,7 +42,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onLogi
       };
       
       setAuth(mockUser, mockTokens);
-      onLoginSuccess();
+      
+      // 使用多重延迟确保状态完全同步
+      setTimeout(() => {
+        requestAnimationFrame(() => {
+          onLoginSuccess();
+        });
+      }, 100);
     } catch (err) {
       setError('登录失败，请检查邮箱和密码');
     } finally {

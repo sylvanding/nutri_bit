@@ -125,6 +125,7 @@ export const useMembership = () => {
 
   // 会员操作方法
   const membershipActions = useMemo(() => ({
+    initializeMembership,
     upgrade: upgradeMembership,
     cancel: cancelMembership,
     renew: renewMembership,
@@ -135,6 +136,7 @@ export const useMembership = () => {
     selectPlan,
     generateRecommendation: generateUpgradeRecommendation
   }), [
+    initializeMembership,
     upgradeMembership,
     cancelMembership,
     renewMembership,

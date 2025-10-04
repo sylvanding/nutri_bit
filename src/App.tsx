@@ -320,9 +320,15 @@ interface PremiumMealPlan {
 }
 
 const App: React.FC = () => {
-  // 认证状态
-  const { isAuthenticated, user } = useAuthStore();
+  // 认证状态 - 使用选择器确保状态变化时重新渲染
+  const { isAuthenticated, user } = useAuthStore((state) => ({
+    isAuthenticated: state.isAuthenticated,
+    user: state.user
+  }));
   const [authView, setAuthView] = useState<'login' | 'register'>('login');
+  
+  // 添加强制刷新状态
+  const [forceRefresh, setForceRefresh] = useState(0);
   
   const [activeTab, setActiveTab] = useState('home');
   const [showCamera, setShowCamera] = useState(false);
@@ -715,6 +721,9 @@ const App: React.FC = () => {
     recommendations: string[];
   } | null>(null);
   
+  // 用户购买的营养计划数据 - 一次只能有一个活跃计划（使用惰性初始化）
+  const [userNutritionPlans, setUserNutritionPlans] = useState<UserNutritionPlan[]>([]);
+  
   // 游戏化系统
   const { addExp, logMeal, level, exp, streak, totalMeals, achievements } = useUltraSimpleGamificationStore();
   
@@ -724,34 +733,119 @@ const App: React.FC = () => {
 
   // 处理登录成功
   const handleLoginSuccess = () => {
-    // 登录成功后可以进行一些初始化操作
-    console.log('用户登录成功:', user);
+    console.log('处理登录成功回调');
+    
+    // 强制重新渲染以确保UI状态同步
+    setForceRefresh(prev => prev + 1);
+    setActiveTab('home');
+    
+    // 确保会员系统初始化
+    const authState = useAuthStore.getState();
+    console.log('当前认证状态:', authState);
+    
+    if (authState.user?.id) {
+      // 延迟初始化会员系统，确保认证状态已完全更新
+      setTimeout(() => {
+        console.log('初始化会员系统...', authState.user);
+        actions.initializeMembership(authState.user!.id.toString());
+      }, 100);
+    }
+    
+    // 额外的状态同步确保
+    setTimeout(() => {
+      setForceRefresh(prev => prev + 1);
+    }, 200);
   };
   
   // 处理注册成功
   const handleRegisterSuccess = () => {
     // 注册成功后可以进行一些初始化操作
     console.log('用户注册成功:', user);
+    setForceRefresh(prev => prev + 1);
+    setActiveTab('home');
+    
+    // 额外的状态同步确保
+    setTimeout(() => {
+      setForceRefresh(prev => prev + 1);
+    }, 200);
   };
   
-  // 如果未登录，显示登录/注册页面
-  if (!isAuthenticated) {
-    if (authView === 'login') {
-      return (
-        <LoginPage
-          onSwitchToRegister={() => setAuthView('register')}
-          onLoginSuccess={handleLoginSuccess}
-        />
-      );
-    } else {
-      return (
-        <RegisterPage
-          onSwitchToLogin={() => setAuthView('login')}
-          onRegisterSuccess={handleRegisterSuccess}
-        />
-      );
+  // 监听认证状态变化
+  useEffect(() => {
+    console.log('认证状态变化:', { isAuthenticated, user, forceRefresh });
+    if (isAuthenticated && user) {
+      console.log('用户已登录，进行初始化...');
+      // 确保切换到主页面
+      setActiveTab('home');
+      // 这里可以进行一些登录后的初始化操作
     }
-  }
+  }, [isAuthenticated, user, forceRefresh]);
+
+  // 监听自定义认证状态变化事件
+  useEffect(() => {
+    const handleAuthStateChange = (event: CustomEvent) => {
+      console.log('收到认证状态变化事件:', event.detail);
+      const { type, user: eventUser, isAuthenticated: eventIsAuthenticated } = event.detail;
+      
+      if (type === 'login' && eventIsAuthenticated) {
+        console.log('处理登录事件，强制刷新组件状态');
+        setForceRefresh(prev => prev + 1);
+        setActiveTab('home');
+        
+        // 延迟一帧确保状态同步
+        requestAnimationFrame(() => {
+          setForceRefresh(prev => prev + 1);
+        });
+      } else if (type === 'logout' && !eventIsAuthenticated) {
+        console.log('处理登出事件，重置应用状态');
+        setForceRefresh(prev => prev + 1);
+        setActiveTab('home');
+        setAuthView('login');
+        
+        // 清理其他相关状态
+        setShowProfileSetup(false);
+        setShowPurchaseModal(false);
+        
+        // 延迟一帧确保状态同步
+        requestAnimationFrame(() => {
+          setForceRefresh(prev => prev + 1);
+        });
+      }
+    };
+
+    const handleAuthStateRestored = (event: CustomEvent) => {
+      console.log('收到认证状态恢复事件:', event.detail);
+      const { user: restoredUser, isAuthenticated: restoredIsAuthenticated } = event.detail;
+      
+      if (restoredIsAuthenticated && restoredUser) {
+        console.log('恢复已登录状态');
+        setForceRefresh(prev => prev + 1);
+        setActiveTab('home');
+      }
+    };
+
+    // 添加事件监听器
+    window.addEventListener('auth-state-changed', handleAuthStateChange as EventListener);
+    window.addEventListener('auth-state-restored', handleAuthStateRestored as EventListener);
+    
+    // 清理函数
+    return () => {
+      window.removeEventListener('auth-state-changed', handleAuthStateChange as EventListener);
+      window.removeEventListener('auth-state-restored', handleAuthStateRestored as EventListener);
+    };
+  }, []);
+  
+  // 定期检查认证状态一致性（仅在开发环境）
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const interval = setInterval(() => {
+        const authState = useAuthStore.getState();
+        console.log('定期检查认证状态:', authState);
+      }, 5000);
+      
+      return () => clearInterval(interval);
+    }
+  }, []);
 
   // 在组件加载时从localStorage读取健康档案
   React.useEffect(() => {
@@ -773,8 +867,6 @@ const App: React.FC = () => {
       // 分析结果可以正常显示
     }
   }, [analysisResults, currentAnalysisStep]);
-
-  // 不再自动滚动，让用户可以自由查看分析步骤
 
   // 监听分析完成状态，自动收起分析界面
   React.useEffect(() => {
@@ -802,6 +894,25 @@ const App: React.FC = () => {
       };
     }
   }, [analysisResults, currentAnalysisStep, userCancelledAutoRedirect]);
+  
+  // 如果未登录，显示登录/注册页面
+  if (!isAuthenticated) {
+    if (authView === 'login') {
+      return (
+        <LoginPage
+          onSwitchToRegister={() => setAuthView('register')}
+          onLoginSuccess={handleLoginSuccess}
+        />
+      );
+    } else {
+      return (
+        <RegisterPage
+          onSwitchToLogin={() => setAuthView('login')}
+          onRegisterSuccess={handleRegisterSuccess}
+        />
+      );
+    }
+  }
 
   // 基于当前时间自动检测餐次
   const detectMealType = (): 'breakfast' | 'lunch' | 'dinner' | 'snack' => {
@@ -1682,48 +1793,6 @@ const App: React.FC = () => {
       purchaseCount: 789
     }
   ];
-
-  // 用户购买的营养计划数据 - 一次只能有一个活跃计划
-  const [userNutritionPlans, setUserNutritionPlans] = useState<UserNutritionPlan[]>([
-    {
-      id: 'user-plan-1',
-      plan: dietPlans[0], // 21天科学减脂计划
-      purchaseDate: '2024-12-01',
-      startDate: '2024-12-05',
-      endDate: '2024-12-25',
-      currentDay: 8,
-      totalDays: 21,
-      status: 'active',
-      progress: 38, // 8/21 * 100
-      todayRecommendation: {
-        breakfast: '燕麦酸奶杯 + 坚果',
-        lunch: '鸡胸肉蔬菜沙拉',
-        dinner: '清蒸鱼配蒸蛋',
-        snack: '苹果 + 无糖酸奶'
-      },
-      adherenceRate: 85,
-      remainingDays: 13
-    },
-    {
-      id: 'user-plan-2',
-      plan: dietPlans[1], // 30天增肌塑形计划
-      purchaseDate: '2024-11-15',
-      startDate: '2024-11-20',
-      endDate: '2024-12-19',
-      currentDay: 21,
-      totalDays: 30,
-      status: 'paused', // 设置为暂停状态，因为只能有一个活跃计划
-      progress: 70, // 21/30 * 100
-      todayRecommendation: {
-        breakfast: '蛋白粉燕麦粥',
-        lunch: '牛肉土豆',
-        dinner: '三文鱼牛油果',
-        snack: '香蕉坚果'
-      },
-      adherenceRate: 92,
-      remainingDays: 9
-    }
-  ]);
 
   // 导入扩展菜谱数据和推荐算法
   const { extendedRecipes, defaultUserPreferences, defaultUserHistory } = (() => {
@@ -8919,7 +8988,9 @@ const App: React.FC = () => {
         <button 
           onClick={() => {
             if (confirm('确定要退出登录吗？')) {
-              useAuthStore.getState().logout();
+              console.log('用户确认登出');
+              const { logout } = useAuthStore.getState();
+              logout();
             }
           }}
           className="w-full p-4 flex items-center justify-between hover:bg-red-50 transition-colors"

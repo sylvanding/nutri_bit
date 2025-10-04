@@ -99,7 +99,13 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSwitchToLogin, onR
       };
       
       setAuth(mockUser, mockTokens);
-      onRegisterSuccess();
+      
+      // 使用多重延迟确保状态完全同步
+      setTimeout(() => {
+        requestAnimationFrame(() => {
+          onRegisterSuccess();
+        });
+      }, 100);
     } catch (err) {
       setError('注册失败，请稍后重试');
     } finally {
